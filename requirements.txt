@@ -1,1 +1,8 @@
-agentstack
+# agentstack
+
+
+colorama
+requests
+pandas
+openpyxl
+ollama

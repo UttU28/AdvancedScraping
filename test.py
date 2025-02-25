@@ -1,5 +1,6 @@
 import requests
 import time
+import json
 from colorama import Fore, Style, init
 
 # Initialize colorama for Windows compatibility
@@ -52,8 +53,11 @@ def checkCrawlStatus(jobId):
         data = response.json()
 
         if data.get("status") == "completed":
-            printSuccess("Crawl completed successfully! Here is the data:")
-            printInfo(data)
+            printSuccess("Crawl completed successfully! Saving data...")
+            # Save crawl results to JSON file
+            with open(f'crawl_results_{jobId}.json', 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=2)
+            printSuccess(f"Crawl data saved to crawl_results_{jobId}.json")
             return data
         else:
             printWarning("Crawl is still processing... Retrying in 5 seconds.")
@@ -70,8 +74,12 @@ def scrapeUrl(url):
     data = response.json()
 
     if data.get("success"):
-        printSuccess("Scrape successful! Here is the extracted content:")
-        printInfo(data["data"])
+        printSuccess("Scrape successful! Saving content...")
+        # Save scrape results to JSON file
+        filename = f'scrape_results_{url.replace("://", "_").replace("/", "_")}.json'
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2)
+        printSuccess(f"Scrape data saved to {filename}")
         return data["data"]
     else:
         printError(f"Error in scraping: {data}")
@@ -88,8 +96,12 @@ def extractData(url, prompt="Extract the company mission from the page."):
     data = response.json()
 
     if data.get("success"):
-        printSuccess("Data extraction successful! Here is the structured data:")
-        printInfo(data)
+        printSuccess("Data extraction successful! Saving structured data...")
+        # Save extraction results to JSON file
+        filename = f'extract_results_{url.replace("://", "_").replace("/", "_")}.json'
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2)
+        printSuccess(f"Extracted data saved to {filename}")
         return data
     else:
         printError(f"Error in data extraction: {data}")
@@ -97,7 +109,7 @@ def extractData(url, prompt="Extract the company mission from the page."):
 
 # === Run Example Requests ===
 if __name__ == "__main__":
-    testUrl = "https://firecrawl.dev"
+    testUrl = "https://www.realproton.com/team"
 
     printInfo("🔥 Firecrawl API Client Started...")
 
