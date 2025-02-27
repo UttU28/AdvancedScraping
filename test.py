@@ -55,9 +55,9 @@ def checkCrawlStatus(jobId):
         if data.get("status") == "completed":
             printSuccess("Crawl completed successfully! Saving data...")
             # Save crawl results to JSON file
-            with open(f'crawl_results_{jobId}.json', 'w', encoding='utf-8') as f:
+            with open(f'crawl_results.json', 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2)
-            printSuccess(f"Crawl data saved to crawl_results_{jobId}.json")
+            printSuccess(f"Crawl data saved to crawl_results.json")
             return data
         else:
             printWarning("Crawl is still processing... Retrying in 5 seconds.")
@@ -76,7 +76,7 @@ def scrapeUrl(url):
     if data.get("success"):
         printSuccess("Scrape successful! Saving content...")
         # Save scrape results to JSON file
-        filename = f'scrape_results_{url.replace("://", "_").replace("/", "_")}.json'
+        filename = f'scrape_results.json'
         with open(filename, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2)
         printSuccess(f"Scrape data saved to {filename}")
@@ -98,7 +98,7 @@ def extractData(url, prompt="Extract the company mission from the page."):
     if data.get("success"):
         printSuccess("Data extraction successful! Saving structured data...")
         # Save extraction results to JSON file
-        filename = f'extract_results_{url.replace("://", "_").replace("/", "_")}.json'
+        filename = f'extract_results.json'
         with open(filename, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2)
         printSuccess(f"Extracted data saved to {filename}")

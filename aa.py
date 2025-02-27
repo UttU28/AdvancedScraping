@@ -109,7 +109,7 @@ def saveToExcel(data, filename="extractedData.xlsx"):
 def main():
     try:
         printInfo("Reading result.json file...")
-        with open('result.json', 'r', encoding='utf-8') as f:
+        with open('scrape_results.json', 'r', encoding='utf-8') as f:
             resultData = json.load(f)
 
         if "data" not in resultData or "markdown" not in resultData["data"]:

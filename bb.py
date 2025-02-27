@@ -1,8 +1,12 @@
 import ollama
 
-# Send a simple "hi" message to the Mistral model
-response = ollama.chat(model='mistral', messages=[{'role': 'user', 'content': 'hi'}])
+# Override Ollama's host to ensure it connects to localhost
 
-# Print the response from the model
-print("response['message']['content']")
-print(response['message']['content'])
+try:
+    response = ollama.chat(
+        model='llama3.2',
+        messages=[{'role': 'user', 'content': 'hi'}],
+    )
+    print(response['message']['content'])
+except Exception as e:
+    print(f"Error: {e}")
