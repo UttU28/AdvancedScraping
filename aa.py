@@ -2,13 +2,14 @@ import ollama
 import pandas as pd
 import json
 import sys
+import re
+import time
 from colorama import init, Fore, Style
 
 # Initialize colorama
 init(autoreset=True)
 
 # Logging Functions
-
 def printSuccess(message):
     print(f"{Fore.GREEN}\u2713 {message}{Style.RESET_ALL}")
 
@@ -22,14 +23,14 @@ def printWarning(message):
     print(f"{Fore.YELLOW}\u26A0 {message}{Style.RESET_ALL}")
 
 # Function to Extract Data from Markdown
-
 def extractInfoFromMarkdown(markdownText):
     printInfo("Starting markdown extraction...")
     
     prompt = f"""
     You are an AI assistant that extracts structured data from Markdown content.  
-    Your task is to extract the following details:  
+    Your task is to extract details for all individuals mentioned in the content.  
 
+    ### Extract the following details for each person:  
     - Full Name  
     - Company Name  
     - Position  
@@ -37,49 +38,65 @@ def extractInfoFromMarkdown(markdownText):
     - Other URLs  
 
     ### Instructions  
-    1. Return the output in JSON format with keys: fullName, company, position, linkedin, and otherUrls.  
-    2. If a field is not found, return an empty string ("") instead of incorrect or assumed values.  
-    3. Only use the information explicitly mentioned in the Markdown—do not make assumptions.  
+    1. Return the output as a JSON array, where each object represents an individual with keys: `fullName`, `company`, `position`, `linkedin`, and `otherUrls`.  
+    2. If a field is not found, return an empty string (`""`) instead of incorrect or assumed values.  
+    3. Extract details for **all** people mentioned in the Markdown—do not assume or infer information that isn't explicitly stated.  
 
     ### Markdown Content:
     {markdownText}
 
     ### Expected JSON Output Format:  
     ```json
+    [
     {{
-      "fullName": "John Doe",
-      "company": "Acme Corp",
-      "position": "Software Engineer",
-      "linkedin": "https://linkedin.com/in/johndoe",
-      "otherUrls": ["https://johndoe.dev"]
+        "fullName": "John Doe",
+        "company": "Acme Corp",
+        "position": "Software Engineer",
+        "linkedin": "https://linkedin.com/in/johndoe",
+        "otherUrls": ["https://johndoe.dev"]
+    }},
+    {{
+        "fullName": "Jane Smith",
+        "company": "Tech Innovations",
+        "position": "Product Manager",
+        "linkedin": "https://linkedin.com/in/janesmith",
+        "otherUrls": []
     }}
-    ```
+    ]
     """
 
-    try:
-        # response = ollama.chat(model='mistral', messages=[{'role': 'user', 'content': 'hi'}])
-        response = ollama.chat(model='mistral', messages=[{'role': 'user', 'content': prompt}])
-        print(1234567890)
-        print(response['message']['content'])
-        extractedData = json.loads(response['message']['content'])
-        
-        requiredKeys = ["fullName", "company", "position", "linkedin", "otherUrls"]
-        for key in requiredKeys:
-            if key not in extractedData:
-                extractedData[key] = ""
 
-        printSuccess("Successfully extracted data from markdown.")
-        return extractedData
+    try:
+        start_time = time.time()
+        
+        response = ollama.chat(model='mistral', messages=[{'role': 'user', 'content': prompt}])
+        
+        end_time = time.time()
+        printInfo(f"Ollama request completed in {end_time - start_time:.2f} seconds")
+
+        rawResponse = response['message']['content']
+        printInfo("Raw response received from LLM:")
+
+        # Extract JSON content using regex
+        jsonMatch = re.search(r'\[\s*\{.*\}\s*\]', rawResponse, re.DOTALL)
+
+        if jsonMatch:
+            extractedJson = jsonMatch.group(0)  # Get the matched JSON string
+            extractedData = json.loads(extractedJson)  # Parse JSON
+            printSuccess("Successfully extracted data from markdown.")
+            return extractedData
+        else:
+            printError("Failed to extract a valid JSON response from Ollama.")
+            return None
 
     except json.JSONDecodeError:
-        printError("Failed to parse JSON response from Ollama.")
+        printError("JSON Decode Error: Unable to parse JSON response.")
         return None
     except Exception as e:
         printError(f"Unexpected error during extraction: {str(e)}")
         return None
 
 # Function to Save Data to Excel
-
 def saveToExcel(data, filename="extractedData.xlsx"):
     try:
         df = pd.DataFrame(data)
@@ -89,7 +106,6 @@ def saveToExcel(data, filename="extractedData.xlsx"):
         printError(f"Failed to save Excel file: {str(e)}")
 
 # Main Execution Flow
-
 def main():
     try:
         printInfo("Reading result.json file...")
@@ -110,7 +126,7 @@ def main():
         extractedInfo = extractInfoFromMarkdown(markdownContent)
 
         if extractedInfo:
-            saveToExcel([extractedInfo])
+            saveToExcel(extractedInfo)  # Save as a list of dictionaries
             printSuccess("Successfully processed result.json and saved extracted data!")
         else:
             printError("No valid data could be extracted from the markdown content.")
