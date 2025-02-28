@@ -1,17 +1,19 @@
 import ollama
-from prompts import COMPLETE_PROMPT
+from prompts import SYSTEM_PROMPT
 
-# Select a model that performs closest to GPT-3.5
-MODEL_NAME = "llama3:8b"  # Change to "mixtral" or "gemma" if needed
+def create_llama3_model():
+    model_name = "llama3:8b"
+    
+    user_prompt = "hi who are you"
+    
+    model = ollama.create(
+        model=model_name,
+        system=SYSTEM_PROMPT,
+        user=user_prompt
+    )
+    
+    return model
 
-# Define the structured messages
-messages = [
-    {"role": "system", "content": "You are an AI assistant that extracts structured data ONLY from the provided Markdown content."},
-    {"role": "user", "content": COMPLETE_PROMPT}
-]
-
-# Run inference using Ollama
-response = ollama.chat(model=MODEL_NAME, messages=messages)
-
-# Print the extracted structured data
-print(response["message"]["content"])
+if __name__ == "__main__":
+    model = create_llama3_model()
+    print("Llama3.2 model created successfully with the custom system and user prompt.")
