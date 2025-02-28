@@ -57,44 +57,84 @@ def extractInfoFromMarkdown(markdownText):
     printInfo("Starting markdown extraction...")
     
     prompt = f"""
-    You are an AI assistant that extracts structured data from Markdown content.  
-    Your task is to extract details for all individuals mentioned in the content.  
+    You are an AI assistant that extracts structured data **ONLY** from the provided Markdown content. Your task is to extract details for all **explicitly mentioned** individuals.
 
-    ### Extract the following details for each person:  
-    - Full Name  
-    - Position  
-    - LinkedIn URL  
-    - Other URLs  
+    ---
 
-    ### Instructions  
-    1. Return the output as a JSON array, where each object represents an individual with keys: `fullName`, `position`, `linkedin`, and `otherUrls`.  
-    2. If a field is not found, return an empty string (`""`) instead of incorrect or assumed values.  
-    3. Extract details for **all** people mentioned in the Markdown—do not assume or infer information that isn't explicitly stated.  
+    ### **TASK**  
+    Extract the following details for each person:
+    - **Full Name**  
+    - **Position**  
+    - **LinkedIn URL**  
+    - **Other URLs**  
 
-    ### Markdown Content:
-    {markdownText}
+    ### **STRICT INSTRUCTIONS**  
+    1. **Only return individuals explicitly named in the Markdown content.**  
+    2. **DO NOT** assume, infer, or hallucinate any details. **Extract only what is explicitly written.**  
+    3. **If a field is missing, return `""` (empty string) or `[]` for URLs.**  
+    4. **Ensure the output format is a valid JSON array.**  
+    5. **Use only the data found in the Markdown text.**  
+    6. **Do not modify names, roles, or links. Preserve exact values.**  
+    7. **Follow the JSON format strictly—no extra fields, no missing fields.**  
 
-    ### Expected JSON Output Format:  
+    ---
+
+    ### **Markdown Content:**  
+    {markdownText}  
+
+    ---
+
+    ### **EXPECTED JSON OUTPUT FORMAT**  THIS IS JUST AN EXAMPLE NAME AND POSITION DO NOT USE THIS EXAMPLE
     ```json
     [
-    {{
-        "fullName": "John Doe",
-        "position": "Software Engineer",
-        "linkedin": "https://linkedin.com/in/johndoe",
-        "otherUrls": ["https://johndoe.dev"]
-    }},
-    {{
-        "fullName": "Jane Smith",
-        "position": "Product Manager",
-        "linkedin": "https://linkedin.com/in/janesmith",
-        "otherUrls": []
-    }}
+        {{
+            "fullName": "John Doe",
+            "position": "Software Engineer",
+            "linkedin": "https://linkedin.com/in/johndoe",
+            "otherUrls": ["https://johndoe.dev"]
+        }},
+        {{
+            "fullName": "Jane Smith",
+            "position": "Product Manager",
+            "linkedin": "https://linkedin.com/in/janesmith",
+            "otherUrls": []
+        }}
     ]
+    ```
+
+    ---
+
+    ### **EXAMPLES TO FOLLOW**  
+
+    ✅ **Correct Output:**  
+    - `"fullName": "John Doe"` → Found in Markdown  
+    - `"position": "Software Engineer"` → Found in Markdown  
+    - `"linkedin": "https://linkedin.com/in/johndoe"` → Found in Markdown  
+    - `"otherUrls": ["https://johndoe.dev"]` → Found in Markdown  
+
+    ❌ **Incorrect Output:**  
+    - `"fullName": "Invented Name"` → ❌ Not found in Markdown  
+    - `"position": "Assumed Role"` → ❌ Not explicitly stated  
+    - `"linkedin": "https://linkedin.com/in/random"` → ❌ If missing, return `""`  
+    - `"otherUrls": ["https://fakewebsite.com"]` → ❌ If missing, return `[]`  
+
+    ---
+
+    ### **FINAL REMINDER**  
+    - **STRICTLY EXTRACT ONLY WHAT EXISTS IN MARKDOWN.**  
+    - **DO NOT add, infer, assume, or modify any data.**  
+    - **RETURN A VALID JSON OUTPUT.**  
+
+    ---
+
     """
 
     try:
         start_time = time.time()
-        response = ollama.chat(model='mistral', messages=[{'role': 'user', 'content': prompt}])
+        
+        response = ollama.chat(model='chevalblanc/gpt-4o-mini', messages=[{'role': 'user', 'content': prompt}])
+        # response = ollama.chat(model='mistral', messages=[{'role': 'user', 'content': prompt}])
+        
         printInfo(f"Ollama request completed in {time.time() - start_time:.2f} seconds")
 
         rawResponse = response['message']['content']
@@ -126,7 +166,9 @@ def main():
     printInfo("🔥 LinkedIn Profile Scraper Started...")
     
     # Get URL from command line or use default
-    url = sys.argv[1] if len(sys.argv) > 1 else input("Enter URL to scrape: ")
+    url = "https://www.zoom.com/en/about/team/"
+    # url = "https://www.realproton.com/team"
+    # url = sys.argv[1] if len(sys.argv) > 1 else input("Enter URL to scrape: ")
     
     # Step 1: Scrape the URL
     scraped_data = scrapeUrl(url)

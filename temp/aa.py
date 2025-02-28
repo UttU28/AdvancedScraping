@@ -43,7 +43,7 @@ def extractInfoFromMarkdown(markdownText):
         4. **No Placeholder Data**: **Do not** return the example output or any placeholder names (like "John Doe" or "Jane Smith") unless those exact names actually appear in the content. The example given is only to illustrate the format, not to be used as actual output.  
         5. **Debug Logging**: If certain details are missing or if no individuals are found:  
         - Still return a JSON array (it will be empty if no person is mentioned).  
-        - After the JSON output, include a brief comment or note explaining why data is missing or why the array is empty. For example: *“No LinkedIn URL provided for Alice, so 'linkedin' is empty.”* or *“No individuals mentioned in the content, returned an empty list.”* This debug note should clarify any missing information without guessing.  
+        - After the JSON output, include a brief comment or note explaining why data is missing or why the array is empty. For example: *"No LinkedIn URL provided for Alice, so 'linkedin' is empty."* or *"No individuals mentioned in the content, returned an empty list."* This debug note should clarify any missing information without guessing.  
 
         ### Markdown Content:  
         {markdownText}
@@ -71,8 +71,9 @@ def extractInfoFromMarkdown(markdownText):
     try:
         start_time = time.time()
         
-        response = ollama.chat(model='mistral', messages=[{'role': 'user', 'content': prompt}])
-        print(response)
+        response = ollama.chat(model='llama3', messages=[{'role': 'user', 'content': prompt}])
+        # response = ollama.chat(model='mistral', messages=[{'role': 'user', 'content': prompt}])
+        # print(response)
         end_time = time.time()
         printInfo(f"Ollama request completed in {end_time - start_time:.2f} seconds")
     
