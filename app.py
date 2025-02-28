@@ -6,6 +6,14 @@ import sys
 import re
 import time
 from colorama import init, Fore, Style
+from prompts import EXTRACTION_PROMPT, COMPLETE_PROMPT
+import openai
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+openai.api_key = os.getenv('OPENAI_API_KEY')
 
 # Initialize colorama
 init(autoreset=True)
@@ -56,88 +64,26 @@ def extractInfoFromMarkdown(markdownText):
     """Extracts structured data from markdown content using Ollama"""
     printInfo("Starting markdown extraction...")
     
-    prompt = f"""
-    You are an AI assistant that extracts structured data **ONLY** from the provided Markdown content. Your task is to extract details for all **explicitly mentioned** individuals.
-
-    ---
-
-    ### **TASK**  
-    Extract the following details for each person:
-    - **Full Name**  
-    - **Position**  
-    - **LinkedIn URL**  
-    - **Other URLs**  
-
-    ### **STRICT INSTRUCTIONS**  
-    1. **Only return individuals explicitly named in the Markdown content.**  
-    2. **DO NOT** assume, infer, or hallucinate any details. **Extract only what is explicitly written.**  
-    3. **If a field is missing, return `""` (empty string) or `[]` for URLs.**  
-    4. **Ensure the output format is a valid JSON array.**  
-    5. **Use only the data found in the Markdown text.**  
-    6. **Do not modify names, roles, or links. Preserve exact values.**  
-    7. **Follow the JSON format strictly—no extra fields, no missing fields.**  
-
-    ---
-
-    ### **Markdown Content:**  
-    {markdownText}  
-
-    ---
-
-    ### **EXPECTED JSON OUTPUT FORMAT**  THIS IS JUST AN EXAMPLE NAME AND POSITION DO NOT USE THIS EXAMPLE
-    ```json
-    [
-        {{
-            "fullName": "John Doe",
-            "position": "Software Engineer",
-            "linkedin": "https://linkedin.com/in/johndoe",
-            "otherUrls": ["https://johndoe.dev"]
-        }},
-        {{
-            "fullName": "Jane Smith",
-            "position": "Product Manager",
-            "linkedin": "https://linkedin.com/in/janesmith",
-            "otherUrls": []
-        }}
-    ]
-    ```
-
-    ---
-
-    ### **EXAMPLES TO FOLLOW**  
-
-    ✅ **Correct Output:**  
-    - `"fullName": "John Doe"` → Found in Markdown  
-    - `"position": "Software Engineer"` → Found in Markdown  
-    - `"linkedin": "https://linkedin.com/in/johndoe"` → Found in Markdown  
-    - `"otherUrls": ["https://johndoe.dev"]` → Found in Markdown  
-
-    ❌ **Incorrect Output:**  
-    - `"fullName": "Invented Name"` → ❌ Not found in Markdown  
-    - `"position": "Assumed Role"` → ❌ Not explicitly stated  
-    - `"linkedin": "https://linkedin.com/in/random"` → ❌ If missing, return `""`  
-    - `"otherUrls": ["https://fakewebsite.com"]` → ❌ If missing, return `[]`  
-
-    ---
-
-    ### **FINAL REMINDER**  
-    - **STRICTLY EXTRACT ONLY WHAT EXISTS IN MARKDOWN.**  
-    - **DO NOT add, infer, assume, or modify any data.**  
-    - **RETURN A VALID JSON OUTPUT.**  
-
-    ---
-
-    """
-
+    
     try:
         start_time = time.time()
         
-        response = ollama.chat(model='chevalblanc/gpt-4o-mini', messages=[{'role': 'user', 'content': prompt}])
-        # response = ollama.chat(model='mistral', messages=[{'role': 'user', 'content': prompt}])
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",  # Or use 'gpt-4' if you prefer
+            messages=[
+                {"role": "system", "content": "You are an AI assistant that extracts structured data ONLY from the provided Markdown content."},
+                {"role": "user", "content": EXTRACTION_PROMPT.format(markdownText=markdownText)}
+                # {"role": "user", "content": COMPLETE_PROMPT}
+            ],
+            temperature=0.0,  # Deterministic, no randomness
+            top_p=1.0,        # Standard sampling
+            frequency_penalty=0.0,  # No penalty for repetition
+            presence_penalty=0.0   # No penalty for repeating tokens
+        )
         
         printInfo(f"Ollama request completed in {time.time() - start_time:.2f} seconds")
 
-        rawResponse = response['message']['content']
+        rawResponse = response['choices'][0]['message']['content'].strip()
         jsonMatch = re.search(r'\[\s*\{.*\}\s*\]', rawResponse, re.DOTALL)
 
         if jsonMatch:
@@ -145,7 +91,13 @@ def extractInfoFromMarkdown(markdownText):
             printSuccess(f"Successfully extracted data for {len(extractedData)} people")
             return extractedData
         else:
-            printError("Failed to extract valid JSON from Ollama response")
+            printWarning("Failed to extract valid JSON from Ollama response. Saving prompt and response to file...")
+            with open('failed_extraction.txt', 'w', encoding='utf-8') as f:
+                f.write("=== PROMPT ===\n\n")
+                f.write(EXTRACTION_PROMPT.format(markdownText=markdownText))
+                f.write("\n\n=== RESPONSE ===\n\n")
+                f.write(rawResponse)
+            printInfo("Prompt and response saved to failed_extraction.txt")
             return None
 
     except Exception as e:
@@ -166,8 +118,10 @@ def main():
     printInfo("🔥 LinkedIn Profile Scraper Started...")
     
     # Get URL from command line or use default
+    url = "https://www.entegris.com/en/home/about-us/corporate-overview.html"
+    url = "https://www.realproton.com/team"
     url = "https://www.zoom.com/en/about/team/"
-    # url = "https://www.realproton.com/team"
+    url = "https://stg-3.com/event/rwa-london-summit/"
     # url = sys.argv[1] if len(sys.argv) > 1 else input("Enter URL to scrape: ")
     
     # Step 1: Scrape the URL

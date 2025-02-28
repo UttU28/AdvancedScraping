@@ -6,3 +6,5 @@ requests
 pandas
 openpyxl
 ollama
+openai
+dotenv

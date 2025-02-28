@@ -1,0 +1,1506 @@
+=== PROMPT ===
+
+
+    You are an AI assistant that extracts structured data **ONLY** from the provided Markdown content. Your task is to extract details for all **explicitly mentioned** individuals.
+
+    ---
+
+    ### **TASK**  
+    Extract the following details for each person:
+    - **Full Name**  
+    - **Position**  
+    - **LinkedIn URL**  
+    - **Other URLs**  
+
+    ### **STRICT INSTRUCTIONS**  
+    1. **Only return individuals explicitly named in the Markdown content.**  
+    2. **DO NOT** assume, infer, or hallucinate any details. **Extract only what is explicitly written.**  
+    3. **If a field is missing, return `""` (empty string) or `[]` for URLs.**  
+    4. **Ensure the output format is a valid JSON array.**  
+    5. **Use only the data found in the Markdown text.**  
+    6. **Do not modify names, roles, or links. Preserve exact values.**  
+    7. **Follow the JSON format strictly—no extra fields, no missing fields.**  
+
+    ---
+
+    ### **Markdown Content:**  
+     
+
+*     ![our science](https://www.entegris.com/content/dam/web/ux/global/navigation/multi-tier/our-science-grey.svg) ![our science](https://www.entegris.com/content/dam/web/ux/global/navigation/multi-tier/our-science-red.svg) Our Science
+    
+    *   By Industry
+        
+        *   Life Sciences
+            
+        *   Microelectronics
+            
+            *   Semiconductor
+                
+            *   Data Storage
+                
+            *   Flat Panel Display
+                
+            *   LED
+                
+            *   Solar
+                
+        *   Industrial
+            
+            *   Aerospace
+                
+            *   Chemical Manufacturing
+                
+            *   Chromatography and Analytical
+                
+            *   Coatings, Inks, and Adhesives
+                
+            *   EDM
+                
+            *   General Industrial
+                
+            *   Glass Forming
+                
+            *   Polymer Manufacturing
+                
+            *   Water Treatment
+                
+            *   Commercial Air Quality
+                
+    *   By Role
+        
+        *   Logic Manufacturers
+            
+        *   Memory Manufacturers
+            
+        *   Semiconductor Equipment Manufacturers
+            
+        *   Chemical Suppliers
+            
+        *   Bioprocessors
+            
+    *   By Solution Area
+        
+        *   Contamination Control
+            
+        *   Fluid Management
+            
+        *   Life Sciences
+            
+        *   Specialty Materials
+            
+        *   Substrate Handling
+            
+    *   By Service
+        
+        *   Analytical Services
+            
+        *   Field Support Services
+            
+        *   FOUP Services
+            
+        *   Refurbishment Services
+            
+        *   Regeneration Services
+            
+        *   Technology Centers
+            
+            *   China Technology Center
+                
+            *   Life Sciences Technology Center
+                
+    
+*     ![product catalog](https://www.entegris.com/content/dam/web/ux/global/navigation/multi-tier/prouct-catalog-grey.svg) ![product catalog](https://www.entegris.com/content/dam/web/ux/global/navigation/multi-tier/product-catalog-red.svg) Product Catalog
+    
+    *   Device Trays
+        
+        *   Tray Wizard
+            
+        *   H20 Series Accessories
+            
+        *   H44 Series Accessories
+            
+    *   Chemistries
+        
+        *   Chemical Delivery Systems
+            
+            *   Solid Chemical Delivery Systems
+                
+            *   Liquid Chemical Delivery Systems
+                
+        *   Specialty Chemicals
+            
+            *   Catalysts
+                
+            *   Coating, Ink, and Adhesive Ingredients
+                
+                *   Resin Monomers and Components
+                    
+                *   Surface Modifiers
+                    
+            *   Post-CMP Cleaning Solutions
+                
+                *   Semiconductor Cleaning Solutions
+                    
+                    *   PlanarClean® Cleaning Solutions
+                        
+                    *   ESC Cleaning Solutions
+                        
+                *   Wide Band Gap Semiconductor Cleaning Solutions
+                    
+                *   HDD Media Substrate Cleaning Solutions
+                    
+            *   Post Etch Cleaning Solutions
+                
+                *   TitanKlean® Cleaning Solutions
+                    
+                *   ST Cleaning Solutions
+                    
+                *   NOE Etchant Cleaning Solutions
+                    
+            *   Precursors
+                
+                *   Upstream ALD/CVD Precursors
+                    
+                *   Advanced Deposition Materials (ADM) ALD/CVD Precursors
+                    
+            *   Electronic Chemicals
+                
+            *   Slurries
+                
+            *   Silanes
+                
+            *   Organophosphorus Compounds
+                
+            *   Specialty Acrylates and Methacrylates
+                
+            *   Siloxanes
+                
+            *   Specialty Additives
+                
+            *   Ligands
+                
+            *   Wafer Reclaim
+                
+    *   Fluid Management Systems
+        
+        *   Fittings Selection Tool
+            
+        *   Liquid Packaging
+            
+            *   Chemical and Bioprocessing Containers
+                
+                *   FluoroPure® HDPE Blowmolded Drums
+                    
+                    *   FluoroPure® Advantage Trilayer HDPE Blowmolded Drums
+                        
+                    *   FluoroPure® Trilayer HDPE Blowmolded Drums
+                        
+                *   FluoroPure® Composite Drums
+                    
+                *   FluoroPure® Custom Products
+                    
+            *   Single-Use Assemblies
+                
+                *   2D and 3D Bags
+                    
+                *   Mixing Systems
+                    
+                *   Motion Bioreactor Bags
+                    
+                *   Microcarrier and Cell Separation Systems
+                    
+                *   Secondary Containment
+                    
+            *   NOWPak® Liner Based Systems
+                
+            *   Sentry® Quick Connect Systems
+                
+            *   FluoroPure® Intermediate Bulk Containers
+                
+            *   FluoroPure® Port Options, Tools and Accessories
+                
+            *   Tube Sets and Manifolds
+                
+            *   Custom Dip Tubes
+                
+            *   FluoroPure® Pressure Vessels
+                
+            *   Process Tanks
+                
+        *   Valves Selection Tool
+            
+        *   Fluid Handling
+            
+            *   Fittings
+                
+                *   PrimeLock® Tube Fittings
+                    
+                *   PrimeLock® ESD Tube Fittings
+                    
+                *   PrimeLock® Accessories
+                    
+                *   Flaretek® Tube Fittings
+                    
+                *   Flaretek® Accessories
+                    
+                *   Cynergy® Fittings
+                    
+                *   Cynergy® Accessories
+                    
+                *   EP PFA Flare Fittings
+                    
+                *   EP PFA Flare Fitting Accessories
+                    
+                *   PureBond® Welded Tube Fittings
+                    
+                *   Quikgrip® Tube Fittings
+                    
+                *   Quikgrip® PFA Nuts
+                    
+                *   Integral Ferrule Tube Fittings
+                    
+                *   Integral Ferrule Accessories
+                    
+                *   Barb PFA Tube Fittings
+                    
+                *   Dual Containment Fittings
+                    
+                *   PureBond® Welded Pipe Fittings
+                    
+                *   PureBond® Accessories
+                    
+                *   NPT Pipe Fittings
+                    
+                *   NPT Accessories
+                    
+            *   Valves
+                
+                *   CR and CH Series Valves
+                    
+                    *   CR4 Series Valves
+                        
+                    *   CR8 Series Valves
+                        
+                    *   CH8 Series High-Temperature Valves
+                        
+                    *   CRE4 Series Valves
+                        
+                    *   CRE8 Series Valves
+                        
+                *   Integra® Valves
+                    
+                *   Cynergy® Valves
+                    
+                *   EP PFA Valves
+                    
+                *   Manifolds and Assemblies
+                    
+                *   Plug Valves
+                    
+                *   Needle/Metering Valves
+                    
+                *   Stopcock Valves
+                    
+                *   Check Valves
+                    
+                *   Valve Accessories
+                    
+                *   Integra® Plus WS ESD Valves
+                    
+            *   Fluid Handling Accessories
+                
+                *   Spray Products
+                    
+                *   Aspirators
+                    
+                *   Fasteners
+                    
+            *   Valves Selection Tool
+                
+            *   Fittings Selection Tool
+                
+            *   Tubing and Pipe
+                
+            *   Custom Products
+                
+        *   Process Monitoring
+            
+            *   Process Control
+                
+                *   Integrated Flow Controllers
+                    
+                *   NT™ Proportional Control Valves
+                    
+                *   Photochemical Dispense Pumps
+                    
+            *   Process Measurement
+                
+                *   Concentration Monitors
+                    
+                *   Electronic Flowmeters
+                    
+                *   NT™ Pressure Transducers
+                    
+            *   Particle Characterization
+                
+    *   Gas Filtration and Purification
+        
+        *   Gas Diffusers
+            
+            *   Chambergard™ Gas Diffusers
+                
+        *   Gas Filters
+            
+            *   Other Gas Filters
+                
+            *   In-Line PTFE Gas Filters
+                
+            *   In-Line Stainless Steel Gas Filters
+                
+            *   In-Line Nickel Gas Filters
+                
+            *   Surface Mount Gas Filters
+                
+        *   AMC Filters
+            
+            *   Stepper and Scanner Filters
+                
+            *   Process Tool Air Filters
+                
+            *   Facility Filtration
+                
+            *   Filter Housings and Stand-alone Filter Cabinets
+                
+        *   Gas Purifiers
+            
+    *   Hard Disk Component Handling
+        
+        *   Storage Boxes and Individual Disk Packages
+            
+        *   Read-Write Trays and Carriers
+            
+        *   Disk Shippers
+            
+        *   Disk Process Carriers
+            
+    *   Liquid Filtration and Purification
+        
+        *   Liquid Filters
+            
+        *   Liquid Purifiers
+            
+        *   Liquid Filter Housings
+            
+    *   Mask and Reticle Handling
+        
+        *   Reticle Pods and Purge Cabinets
+            
+        *   Mask Carriers and Shipping Boxes
+            
+        *   Mask Packages
+            
+    *   Other Substrate Handling
+        
+        *   Miscellaneous Device Processing
+            
+        *   Solar Cell Solutions
+            
+    *   Specialty Materials
+        
+        *   Premium Graphite
+            
+            *   Industrial Graphite Grades
+                
+            *   Semiconductor Graphite Grades
+                
+            *   Life Sciences Graphite Grades
+                
+            *   Premium Graphite Components
+                
+            *   Glass Forming Graphite Grades
+                
+            *   GLASSMATE® Components
+                
+            *   Graphite Processing Options
+                
+        *   Coatings
+            
+            *   Chucks
+                
+            *   Plasma Enhanced Chemical Vapor Deposition (PECVD) Coatings
+                
+            *   Caerus™ Coating Technology
+                
+            *   Pegasus™ Coating Technology
+                
+        *   Premium Silicon Carbide
+            
+            *   SUPERSiC<sup>®</sup> Silicon Carbide Components
+                
+            *   SUPERSiC<sup>®</sup> Silicon Carbide
+                
+        *   Advanced Cleaning Materials
+            
+    *   Specialty Gases
+        
+        *   Specialty Gas Mixtures
+            
+        *   Gas Delivery Cylinder Systems
+            
+        *   Gas Delivery Cabinet Systems
+            
+        *   Gases
+            
+    *   Wafer Handling
+        
+        *   Wafer Processing
+            
+            *   CMP Cleaning Brushes
+                
+            *   CMP Pads
+                
+            *   300 mm Front Opening Unified Pods (FOUPs)
+                
+            *   200 mm Wafer Processing
+                
+            *   200 mm Accessories
+                
+            *   150 mm Wafer Processing
+                
+            *   150 mm and Smaller Wafer Carrier Accessories
+                
+            *   125 mm Wafer Processing
+                
+            *   100 mm Wafer Processing
+                
+            *   76.2 mm 3" Wafer Processing
+                
+            *   2.5" and Smaller Wafer Processing
+                
+            *   Labware
+                
+            *   Chucks
+                
+        *   Wafer Shipping
+            
+            *   300 mm Wafer Shippers
+                
+            *   200 mm Wafer Shippers
+                
+            *   150 mm Wafer Shippers
+                
+            *   125 mm Wafer Shippers
+                
+            *   100 mm Wafer Shippers
+                
+            *   76.2 mm (3") Wafer Shippers
+                
+            *   2.5" and Smaller Wafer Shippers
+                
+        *   Finished Wafer Shipping
+            
+            *   SmartStack® Contactless Horizontal Wafer Shipper
+                
+            *   SmartStack® Horizontal Wafer Shippers
+                
+            *   Film Frame Rings and Shippers
+                
+    
+*     ![resources](https://www.entegris.com/content/dam/web/ux/global/navigation/multi-tier/resources-grey.svg) ![resources](https://www.entegris.com/content/dam/web/ux/global/navigation/multi-tier/resources-red.svg) Resources
+    
+    *   Reference Materials
+        
+    *   Technical Information
+        
+        *   Calculators and Tools
+            
+        *   Chemical Compatibility
+            
+        *   Chemlock® Filter Housing Technical Information
+            
+        *   Component Technical Information
+            
+        *   Entegris Test Standards and Protocols
+            
+        *   FAQ
+            
+        *   Formulas
+            
+        *   Glossary
+            
+        *   Material Properties and Safety
+            
+        *   Particle Characterization Applications
+            
+    *   Industry Insights
+        
+        *   3D NAND Solutions
+            
+        *   Accelerating Speed-to-Yield with High-Purity Materials Solutions
+            
+        *   Achieving Hydrogen Purity Standards for Fuel Cells
+            
+        *   Advanced Coatings
+            
+        *   Advanced Deposition Materials Innovation
+            
+        *   Automotive Reliability
+            
+        *   Cars and Chips: The Acceleration of Electronic Systems
+            
+        *   Chasing the Perfect Pattern
+            
+        *   Chemical Mechanical Planarization (CMP)
+            
+        *   Clean Chemical Delivery
+            
+        *   Clean Gas Delivery
+            
+        *   CMP Process Monitoring
+            
+        *   Cold Chain Bioprocessing
+            
+        *   Dual Containment Tubing
+            
+        *   Electrostatic Discharge (ESD) Prevention
+            
+        *   Enabling Advanced Lithography
+            
+        *   End-to-End Gas Filtration Solutions
+            
+        *   Food and Beverage Contamination Control
+            
+        *   Front-end to Back-end Solutions
+            
+        *   Glass in Front; Glass in Back
+            
+        *   High-Density Cell Banking
+            
+        *   High Purity Chemical Manufacturing
+            
+        *   Holistic Approach to Enabling Device Performance, Yield, and Reliability
+            
+        *   Internet of Things
+            
+        *   Low-Temperature Bioprocessing
+            
+        *   More Than Just a Chip Tray
+            
+        *   Operational Excellence
+            
+        *   Pandemic Response
+            
+        *   Particle Characterization
+            
+        *   Pervasive Defectivity in Semiconductor Manufacturing
+            
+        *   Protecting Your Data Center Environment from Gas-Phase Contamination
+            
+        *   Silicon Carbide Substrate Solutions
+            
+        *   Solid Precursors and Delivery Systems
+            
+        *   Solutions in Advanced Logic
+            
+        *   Solving Advanced Technology Challenges with Innovative Materials
+            
+        *   Specialty Gases and Delivery Systems for Ion Implantation
+            
+        *   Storage Class Memory
+            
+        *   Targeted Contaminant Removal
+            
+        *   The Rare Air of the Semiconductor Fab
+            
+        *   The Silicon Precursor Toolbox for Low-Temperature Deposition
+            
+    *   Ensights (Blog)
+        
+    *   Scientific Report
+        
+    
+*     ![about us](https://www.entegris.com/content/dam/web/ux/global/navigation/multi-tier/about-us-grey.svg) ![about us](https://www.entegris.com/content/dam/web/ux/global/navigation/multi-tier/about-us-red.svg) About Us
+    
+    *   Corporate Overview
+        
+    *   Corporate Social Responsibility
+        
+    *   Careers
+        
+    *   Events
+        
+    *   Investor Relations
+        
+    *   Legal/Trademark Notices
+        
+    *   Locations
+        
+    *   News Releases
+        
+    *   Entegris Blog
+        
+    *   Manufacturing
+        
+    
+
+  ![Our Sites](https://www.entegris.com/content/dam/web/ux/global/navigation/multi-tier/Our_Sites_1x_Grey.svg) ![Our Sites](https://www.entegris.com/content/dam/web/ux/global/navigation/multi-tier/Our_Sites_1x_Red.svg) Our Sites
+
+  ![more](https://www.entegris.com/content/dam/web/ux/global/navigation/multi-tier/more-grey.svg) ![more](https://www.entegris.com/content/dam/web/ux/global/navigation/multi-tier/more-red.svg) More
+
+Back
+
+*   [Entegris](https://www.entegris.com/)
+    
+*   [Investor Relations](https://investor.entegris.com/)
+    
+*   [Life Sciences](https://lifesciences.entegris.com/)
+    
+*   [POCO Materials](https://poco.entegris.com/)
+    
+
+*   [![Image](https://www.entegris.com/content/dam/web/ux/global/footer/facebook.svg)](https://www.facebook.com/EntegrisInc)
+    
+*   [![Image](https://www.entegris.com/content/dam/web/ux/global/footer/twitter-x.svg)](https://twitter.com/Entegris)
+    
+*   [![Image](https://www.entegris.com/content/dam/web/ux/global/footer/youtube.svg)](https://www.youtube.com/user/EntegrisInc)
+    
+*   [![Image](https://www.entegris.com/content/dam/web/ux/global/footer/linkedin.svg)](https://www.linkedin.com/company/entegris)
+    
+*   [![Image](https://www.entegris.com/content/dam/web/ux/global/footer/instagram.svg)](https://www.instagram.com/entegrisinc/)
+    
+
+[](https://www.entegris.com/en/home.html)
+
+*   [Privacy Policy](https://www.entegris.com/en/home/about-us/legal-trademark-notices/privacy-policy.html)
+    
+*   [Terms & Conditions](https://www.entegris.com/en/home/about-us/legal-trademark-notices/terms-and-conditions-of-sale.html)
+    
+*   [Legal & Trademark Notices](https://www.entegris.com/en/home/about-us/legal-trademark-notices.html)
+    
+
+*   [Menu](javascript:void(0);)
+    
+*   [Top](javascript:void(0);)
+    
+*   [Search](javascript:void(0);)
+    
+*   [Tools](javascript:void(0);)
+    
+
+*      ![Company Overview Hero](https://www.entegris.com/en/home/about-us/corporate-overview.html)
+    
+    Delivering Innovative Science-Based Solutions
+    =============================================
+    
+
+[](javascript:void(0);)
+
+*   [Home](https://www.entegris.com/en/home.html)
+    
+*   [About Us](https://www.entegris.com/en/home/about-us.html)
+    
+*   Corporate Overview
+
+[](javascript:void(0);)
+
+![](https://www.entegris.com/content/dam/web/ux/slideout/notch/desktop/gray-notch-left-nr-dt-22-5-px.png)
+
+![](https://www.entegris.com/content/dam/web/ux/slideout/notch/mobile/gray-notch-bottom-nr-mobile.png)
+
+#### Our Purpose
+
+Enabling the Technologies that Transform the World
+--------------------------------------------------
+
+As a global company working with leading manufacturers to enable ongoing advancement in technology, we have a global infrastructure that includes strategically placed manufacturing sites, R&D facilities, and customer support centers. We make infrastructure investments that put us closer to our customers in all global regions. Our highly skilled team members, facilities and resources are right where you need them in order to help you solve your most advanced technology challenges.
+
+    
+
+### Products and solutions include:
+
+*   Filtration products that purify gases, fluids, and the ambient fab environment
+*   Liquid systems and components that dispense, control, analyze, or transport process fluids
+*   Gas delivery systems that safely store and deliver toxic gases
+*   Specialty chemistries for deposition and cleaning at advanced nodes  
+    
+
+*   Wafer carriers and shippers that protect semiconductor wafers from contamination and breakage
+*   Specialty coatings that provide high-purity surfaces for wear-resistance, corrosion protection, and smoothness
+*   Premium graphite and silicon carbide for high-performance applications
+*   Shippers and trays for protecting and transporting disk drive components
+
+#### Featured Information
+
+![Corporate Fact Sheet](https://www.entegris.com/content/dam/web/ux/spotlight/cover-image/corp-fact-sheet-9000-5498.svg)
+
+### Corporate Fact Sheet
+
+Committed to solving our customers' most demanding process challenges through a broad solutions portfolio, collaborative and innovative product development, and a focus on science and applications knowledge.
+
+[Download Now](https://www.entegris.com/en/home/resources/reference-materials/articles/corporate-fact-sheet.html)
+
+    
+
+![Image](https://www.entegris.com/content/dam/web/ux/slideout/notch/mobile/white-notch-bottom-mobile.png)
+
+#### Our Core Competencies
+
+The Science of Innovation
+-------------------------
+
+The Fourth Industrial Revolution is here. Artificial intelligence, augmented reality, Internet of Things – these are not just trends, they are drivers changing the way people live across the globe. With these new drivers and the increasing speed of innovation, there comes an expectation for higher-quality, higher-performing technologies at a faster pace. Through the power of our award-winning solutions and our technology expertise, we provide customers with innovative, science-based solutions to their toughest technology challenges. At Entegris, we are the Science of Innovation.
+
+![](https://www.entegris.com/content/dam/web/ux/slideout/notch/desktop/white-notch-right-dt-22-5-px.png)
+
+ 
+
+**Materials Science and Analytics**
+
+Separation science
+
+Membrane science and engineering
+
+Polymer characterization and development
+
+Interfacial science
+
+Source of contamination analysis
+
+ 
+
+**Advanced Materials**
+
+Materials synthesis and tailored formulation
+
+Precision gas mixtures
+
+Specialty coatings
+
+Graphite, SiC, and engineered carbon
+
+Surface preparation and cleaning
+
+Liquid and gas storage and transport
+
+ 
+
+**Microcontamination Control**
+
+Leading edge liquid filtration and purification
+
+Gas purification at parts per trillion (ppt) levels
+
+Airborne Molecular Contamination (AMC) solutions for advanced fabs
+
+Wafer and reticle handling
+
+Fluid management, sensing and control
+
+ 
+
+**Manufacturing Excellence**
+
+Ultraclean component and materials manufacturing
+
+Rapid prototyping and customization
+
+Leading-edge quality control with integrated SPC
+
+Broad global manufacturing footprint
+
+* * *
+
+#### Company Facts
+
+Entegris at a Glance
+
+Through the power of our award-winning solutions, our strong employee culture and our technology expertise, we provide customers with innovative, science based solutions to their toughest technology challenges.
+
+1966
+
+Founded
+
+~8,200
+
+Employees
+
+Billerica, MA
+
+Global Headquarters
+
+~4,500
+
+Active Patents
+
+$3.2B
+
+2024 Net Sales
+
+$316.1M
+
+2024 R&D Investment
+
+Entegris Timeline
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+JULY
+
+2022
+
+Acquired CMC Materials
+
+Leading CMP products and technology for the semiconductor industry
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+NOVEMBER
+
+2021
+
+Acquired Precision Microchemicals
+
+CMP slurries for SiC and high-purity cleaners for HDD
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+JULY
+
+2020
+
+Acquired GMTI and CRP
+
+Advanced process monitoring for CMP chemistries
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+JANUARY
+
+2020
+
+Acquired Sinmat
+
+CMP slurries for SiC, GaN, C
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+SEPTEMBER
+
+2019
+
+Acquired Hangzhou Anow Microfiltration
+
+Filtration manufacturing in Asia
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+JULY
+
+2019
+
+Acquired MPD Chemicals
+
+Organosilanes and other advanced chemicals
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+MARCH
+
+2019
+
+Acquired Digital Specialty Chemicals
+
+Organometallics and other fine chemicals
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+JUNE 26
+
+2018
+
+Acquired Flex Concepts
+
+Quick-turn custom configurations for bioprocessing
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+JUNE 25
+
+2018
+
+Acquired SAES Pure Gas
+
+High-capacity gas purification system
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+JANUARY 22
+
+2018
+
+Acquired Particle Sizing Systems
+
+Particle sizing instrumentation for liquid applications
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+OCTOBER 18
+
+2017
+
+Initiated Quarterly Cash Dividend
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+SEPTEMBER 13
+
+2017
+
+Named to Fortune's 2017 100 Fastest-Growing Companies
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+SEPTEMBER 12
+
+2017
+
+Expanded Taiwan Technology Center
+
+To add new microcontamination analysis and technology development capacity
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+AUGUST 09
+
+2017
+
+Awarded TOK America 2016 Supplier of the Year
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+JULY
+
+2017
+
+Received Plansee Electrograph 2016 Supplier of the Year Award
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+APRIL 25
+
+2017
+
+Acquired Microelectronics Filtration Product Line from W.L. Gore & Associates
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+MARCH 13
+
+2017
+
+Partnered with Spectrum Materials
+
+To manufacture specialty chemicals in China
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+DECEMBER 16
+
+2016
+
+Awarded Dongjin 2016 Best Vendor Award
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+SEPTEMBER
+
+2016
+
+Launched First Release of New Website
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+JUNE
+
+2016
+
+Celebrating 50 Years in Business
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+MARCH
+
+2016
+
+Lux Research "Entegris Leading in Innovation"
+
+According to Chemical Industry Benchmarking
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+JANUARY 27
+
+2016
+
+Expansion of Analytical and R&D Capabilities in South Korea
+
+For liquid filtration and purification
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+SEPTEMBER 22
+
+2015
+
+Awarded Samsung Best in Value Award
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+SEPTEMBER 01
+
+2015
+
+Received Seagate Appreciation Award
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+JUNE 18
+
+2015
+
+First Shipments of Production Quantities of UPE Membrane from i2M Center Announced
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+JUNE
+
+2015
+
+Burnet Analytical Services Received ISO 17025 Accreditation
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+2015
+
+Received STMicroelectronics Best Supplier Award
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+JUNE 18
+
+2014
+
+Opened i2M center
+
+R&D and manufacturing for filtration membranes, specialty coatings and gas filtration in Bedford, MA
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+APRIL 30
+
+2014
+
+ATMI Acquired
+
+Advanced materials and material delivery systems
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+APRIL 01
+
+2013
+
+Jetalon Solutions Acquired
+
+Chemical concentration sensors and analyers
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+NOVEMBER 27
+
+2012
+
+Bertrand Loy Succeeded Gideon Argov as CEO
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+NOVEMBER 26
+
+2012
+
+Named by Forbes Media Publisher's List of America's 100 Most Trustworthy Companies
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+APRIL 02
+
+2012
+
+Entegris Precision Technology Acquired
+
+HDPE drum manufacturing in Taiwan
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+OCTOBER
+
+2011
+
+Opened Manufacturing Facility in Hsinchu, Taiwan
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+MAY 20
+
+2010
+
+Received UMC Outstanding Supplier Award
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+2009
+
+PureLine Acquired
+
+Fluid handling component manufacturing in South Korea
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+AUGUST
+
+2008
+
+Poco Graphite Acquired
+
+High-performance graphite and silicon carbide
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+AUGUST
+
+2007
+
+Surmet's Semiconductor Coatings Business Acquired
+
+High-purity and speciality coatings
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+2006
+
+Launched Lean Sigma Program
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+2006
+
+Expanded Manufacturing in Kulim, Malaysia
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+AUGUST
+
+2005
+
+Entegris and Mykrolis Merger
+
+Combined entity becomes industry's largest contamination control company
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+MAY
+
+2004
+
+Acquired SNEF's Precision Parts Cleaning Business
+
+Offsite cleaning facility in Montpellier, France
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+MARCH
+
+2001
+
+Mykrolis Founded through Millipore Spin-Off
+
+Liquid and gas purification , contamination control
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+2001
+
+NT International Acquired
+
+Ultrahigh-purity sensing and control
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+JULY 10
+
+2000
+
+Began Trading on the NASDAQ under the ENTG Symbol
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+JUNE
+
+1999
+
+Entegris Founded through Fluoroware and EMPAK Merger
+
+Polymer science, process knowledge
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+1997
+
+Began Manufacturing in Malaysia
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+1993
+
+Received ISO 9001 Certification
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+1984
+
+Began Manufacturing in Japan
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+1980
+
+EMPAK Founded
+
+Wafer handling
+
+ ![Image](https://entegris.scene7.com/is/image/entegris/20191?$img-300-width$)
+
+SEPTEMBER
+
+1966
+
+Fluoroware Founded
+
+Fluid and wafer handling
+
+![](https://www.entegris.com/content/dam/web/ux/slideout/notch/desktop/white-notch-left-dt-22-5-px.png)
+
+![](https://www.entegris.com/content/dam/web/ux/slideout/notch/mobile/white-notch-bottom-mobile.png)
+
+#### Mission, Vision, and Values
+
+Guiding What We Do and How We Do It
+-----------------------------------
+
+**Our Mission**
+
+To help our customers improve their productivity, performance, and technology by providing enhancing materials and process solutions for the most advanced manufacturing environments
+
+**Our Vision**
+
+Use advanced science to enable technologies that transform the world
+
+    
+
+ 
+
+### People and Teamwork
+
+We will treat people with respect and dignity in a collaborative environment that aligns the organization, achieves high performance, and rewards team success.
+
+ 
+
+### Accountability, Integrity, and Trust
+
+We will act honestly and consistently with all; accept responsibility to deliver results and commit to openly communicate.
+
+ 
+
+### Creativity and Innovation
+
+We are committed to an environment in which people are  encouraged to disseminate knowledge, take risks, openly share ideas, and turn them into business opportunities.
+
+ 
+
+### Dedication to Excellence
+
+We will set high standards for performance and strive to be best in class through outstanding leadership at all levels.
+
+* * *
+
+#### Executives and Board of Directors
+
+Our Leadership Makes a Difference
+=================================
+
+#### Executives
+
+A world-class organization can only be born through world-class leadership. Our leaders have set the tone and direction for our journey as a company. The opportunity they provide for us creates the platform for our passion.
+
+[![](https://entegris.scene7.com/is/image/entegris/b-loy:img-375-375)](https://www.entegris.com/en/home/about-us/corporate-overview/bertrand-loy.html)
+
+Bertrand Loy President, Chief Executive Officer, and Chair of the Board of Directors
+
+[![](https://entegris.scene7.com/is/image/entegris/m-besnard:img-375-375)](https://www.entegris.com/en/home/about-us/corporate-overview/michael-besnard.html)
+
+Michael Besnard Senior Vice President and Chief Commercial Officer
+
+[![](https://entegris.scene7.com/is/image/entegris/a-bhandare:img-375-375)](https://www.entegris.com/en/home/about-us/corporate-overview/abhijeet-bhandare.html)
+
+Abhijeet Bhandare Senior Vice President, Chief Information and Digital Officer
+
+[![](https://entegris.scene7.com/is/image/entegris/olivier-blanchier:img-375-375)](https://www.entegris.com/en/home/about-us/corporate-overview/olivier-blachier.html)
+
+Olivier Blachier Senior Vice President and Chief Strategy Officer
+
+[![](https://entegris.scene7.com/is/image/entegris/joseph-colella:img-375-375)](https://www.entegris.com/en/home/about-us/corporate-overview/joseph-colella.html)
+
+Joe Colella Senior Vice President, General Counsel, Chief Compliance Officer, and Secretary
+
+[![](https://entegris.scene7.com/is/image/entegris/c-haris:img-375-375)](https://www.entegris.com/en/home/about-us/corporate-overview/clint-haris.html)
+
+Clint Haris Senior Vice President and President, Advanced Purity Solutions
+
+[![](https://entegris.scene7.com/is/image/entegris/linda-lagorga:img-375-375)](https://www.entegris.com/en/home/about-us/corporate-overview/linda-lagorga.html)
+
+Linda LaGorga Senior Vice President and Chief Financial Officer
+
+[![](https://entegris.scene7.com/is/image/entegris/jim-oneill:img-375-375)](https://www.entegris.com/en/home/about-us/corporate-overview/james-a-oneill.html)
+
+James A. O'Neill, Ph.D. Senior Vice President and Chief Technology Officer
+
+[![](https://entegris.scene7.com/is/image/entegris/s-rice:img-375-375)](https://www.entegris.com/en/home/about-us/corporate-overview/susan-rice.html)
+
+Susan Rice Senior Vice President, Global Human Resources
+
+[![](https://entegris.scene7.com/is/image/entegris/n-richards:img-375-375)](https://www.entegris.com/en/home/about-us/corporate-overview/neil-richards.html)
+
+Neil Richards Senior Vice President, Global Operations, Supply Chain, and Quality
+
+[![](https://entegris.scene7.com/is/image/entegris/d-woodland:img-375-375)](https://www.entegris.com/en/home/about-us/corporate-overview/daniel-d-woodland.html)
+
+Daniel D. Woodland, Ph.D. Senior Vice President and President, Materials Solutions
+
+[](https://www.entegris.com/en/home/about-us/corporate-overview.html#board)
+
+#### Board of Directors
+
+With vast knowledge and experience in a variety of industries and leadership positions, our board of directors help enlighten, guide, and validate our best path forward.
+
+[![](https://entegris.scene7.com/is/image/entegris/b-loy:img-375-375)](https://www.entegris.com/en/home/about-us/corporate-overview/bod-bertrand-loy.html)
+
+Bertrand Loy President, Chief Executive Officer, and Chair of the Board of Directors
+
+[![](https://entegris.scene7.com/is/image/entegris/rodney-clarke:img-375-375)](https://www.entegris.com/en/home/about-us/corporate-overview/rodney-clark.html)
+
+Rodney Clark Board Member
+
+[![](https://entegris.scene7.com/is/image/entegris/j-gentilcore:img-375-375)](https://www.entegris.com/en/home/about-us/corporate-overview/james-f-gentilcore.html)
+
+James F. Gentilcore Lead Independent Director
+
+[![](https://entegris.scene7.com/is/image/entegris/yvette-kanouff:img-375-375)](https://www.entegris.com/en/home/about-us/corporate-overview/yvette-kanouff.html)
+
+Yvette Kanouff Board Member
+
+[![](https://entegris.scene7.com/is/image/entegris/j-lederer:img-375-375)](https://www.entegris.com/en/home/about-us/corporate-overview/james-p-lederer.html)
+
+James P. Lederer Board Member
+
+[![](https://entegris.scene7.com/is/image/entegris/mary-puma-10877:img-375-375)](https://www.entegris.com/en/home/about-us/corporate-overview/mary-puma.html)
+
+Mary Puma Board Member
+
+[![](https://entegris.scene7.com/is/image/entegris/david-reeder:img-375-375)](https://www.entegris.com/en/home/about-us/corporate-overview/david-reeder.html)
+
+David Reeder Board Member
+
+[![](https://entegris.scene7.com/is/image/entegris/a-saleki-gerhardt:img-375-375)](https://www.entegris.com/en/home/about-us/corporate-overview/azita-saleki-gerhardt.html)
+
+Azita Saleki-Gerhardt, Ph.D. Board Member
+
+![](https://www.entegris.com/content/dam/web/ux/slideout/notch/desktop/white-notch-left-dt-22-5-px.png)
+
+![](https://www.entegris.com/content/dam/web/ux/slideout/notch/desktop/white-notch-left-dt-22-5-px.png)
+
+Our Scientific Report
+---------------------
+
+The Scientific Report is a flagship publication of Entegris and showcases insights from our global team of scientists and engineers who work daily to discover advanced technology solutions. Published annually, this collection of articles informs our readers about innovations and developments in engineering, technology, and science.   
+
+[Learn More](https://www.entegris.com/en/home/resources/scientific-report.html)
+
+      
+
+* * *
+
+Our Commitment to Social Responsibility
+=======================================
+
+We believe that everything we do as a business must be inextricably linked to what we stand for as an organization, aligned with our PACE Values, and have a lasting, positive impact on our world.
+
+[Learn more](https://www.entegris.com/en/home/about-us/corporate-social-responsibility.html)
+
+*    [![](https://www.entegris.com/content/dam/web/about-us/corporate-overview/images/ethics.svg)Ethics, Compliance, and Employee Grievance](https://www.entegris.com/en/home/about-us/corporate-social-responsibility/ethics-compliance-and-employee-grievance.html)
+    
+*    [![](https://www.entegris.com/content/dam/web/about-us/corporate-overview/images/iso-certificate.svg)ISO Certifications](https://www.entegris.com/en/home/about-us/corporate-social-responsibility/iso-certifications.html)
+    
+*    [![](https://www.entegris.com/content/dam/web/about-us/corporate-overview/images/policy.svg)Policies](https://www.entegris.com/en/home/about-us/corporate-social-responsibility/policies.html)  
+
+    ---
+
+    ### **EXPECTED JSON OUTPUT FORMAT**  
+    ```json
+    [
+        {
+            "fullName": "John Doe",
+            "position": "Software Engineer",
+            "linkedin": "https://linkedin.com/in/johndoe",
+            "otherUrls": ["https://johndoe.dev"]
+        },
+        {
+            "fullName": "Jane Smith",
+            "position": "Product Manager",
+            "linkedin": "https://linkedin.com/in/janesmith",
+            "otherUrls": []
+        }
+    ]
+    ```
+
+    ---
+
+    ### **EXAMPLES TO FOLLOW**  
+    ✅ **Correct Output:**  
+    - `"fullName": "John Doe"` → Found in Markdown  
+    - `"position": "Software Engineer"` → Found in Markdown  
+    - `"linkedin": "https://linkedin.com/in/johndoe"` → Found in Markdown  
+    - `"otherUrls": ["https://johndoe.dev"]` → Found in Markdown  
+
+    ❌ **Incorrect Output:**  
+    - `"fullName": "Invented Name"` → ❌ Not found in Markdown  
+    - `"position": "Assumed Role"` → ❌ Not explicitly stated  
+    - `"linkedin": "https://linkedin.com/in/random"` → ❌ If missing, return `""`  
+    - `"otherUrls": ["https://fakewebsite.com"]` → ❌ If missing, return `[]`  
+
+    ---
+
+    ### **FINAL REMINDER**  
+    - **STRICTLY EXTRACT ONLY WHAT EXISTS IN MARKDOWN.**  
+    - **DO NOT add, infer, assume, or modify any data.**  
+    - **RETURN A VALID JSON OUTPUT.**  
+
+    ---
+
+    This prompt ensures accurate and structured data extraction from Markdown using Mistral while minimizing hallucinations. 🚀
+    
+
+=== RESPONSE ===
+
+```json
+[]
+```
