@@ -1,6 +1,3 @@
-# agentstack
-
-
 colorama
 requests
 pandas
@@ -8,3 +5,7 @@ openpyxl
 ollama
 openai==0.28
 dotenv
+
+fastapi
+uvicorn
+

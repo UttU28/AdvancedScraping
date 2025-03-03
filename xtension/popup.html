@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>People Scraper</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+      body {
+        width: 280px;
+        padding: 16px;
+        background-color: #1a1d21;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        margin: 0;
+        color: #fff;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      h2 {
+        font-size: 22px;
+        margin: 0 0 20px 0;
+        color: #ffffff;
+        font-weight: 700;
+        padding: 0 4px;
+        letter-spacing: -0.5px;
+      }
+
+      .neumorphic-button {
+        width: 100%;
+        padding: 14px;
+        border: none;
+        border-radius: 10px;
+        background: #1a1d21;
+        color: #00f2ea;
+        cursor: pointer;
+        font-size: 15px;
+        font-weight: 600;
+        font-family: 'Inter', sans-serif;
+        margin-bottom: 12px;
+        transition: all 0.2s ease;
+        letter-spacing: -0.2px;
+        box-shadow: 
+          5px 5px 10px #151719,
+          -5px -5px 10px #1f2329;
+      }
+
+      .neumorphic-button:hover {
+        color: #1ffff9;
+        box-shadow: 
+          3px 3px 6px #151719,
+          -3px -3px 6px #1f2329;
+      }
+
+      .neumorphic-button:active {
+        color: #00f2ea;
+        box-shadow: inset 
+          3px 3px 6px #151719,
+          inset -3px -3px 6px #1f2329;
+      }
+
+      .neumorphic-button:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+      }
+
+      #responseContainer {
+        margin-top: 12px;
+        padding: 12px 14px;
+        border-radius: 10px;
+        font-size: 13.5px;
+        line-height: 1.4;
+        transition: all 0.2s ease;
+        font-weight: 500;
+        min-height: 20px;
+      }
+
+      .success {
+        background: rgba(0, 242, 234, 0.08);
+        color: #00f2ea;
+        box-shadow: inset 
+          2px 2px 4px #151719,
+          inset -2px -2px 4px #1f2329;
+      }
+
+      .error {
+        background: rgba(255, 84, 84, 0.08);
+        color: #ff5454;
+        box-shadow: inset 
+          2px 2px 4px #151719,
+          inset -2px -2px 4px #1f2329;
+      }
+
+      .status-container {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        margin: -8px -8px 12px -8px;
+        padding: 8px;
+      }
+
+      .status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #00f2ea;
+        box-shadow: 0 0 6px #00f2ea;
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0% {
+          box-shadow: 0 0 6px #00f2ea;
+        }
+        50% {
+          box-shadow: 0 0 10px #00f2ea;
+        }
+        100% {
+          box-shadow: 0 0 6px #00f2ea;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="status-container">
+      <div class="status-dot"></div>
+    </div>
+    
+    <h2>People Scraper</h2>
+    
+    <button id="extractBtn" class="neumorphic-button">
+      Get People from this Site
+    </button>
+    
+    <div id="responseContainer"></div>
+    
+    <script src="popup.js"></script>
+  </body>
+</html>
