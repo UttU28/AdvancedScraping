@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from humans import scrapeHumans
 import subprocess
 import threading
 import time
@@ -28,6 +29,8 @@ async def api_endpoint(request: Request):
     if 'url' in data:
         url = data['url']
         print(f'Received URL: {url}')
+
+        scrapeHumans(url)
         
         response = {
             'message': f'Data received from URL: {url}',
