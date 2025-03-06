@@ -3,6 +3,7 @@ env/*
 *.json
 .env
 *.xlsx
+*.md
 
 
 !xtension/manifest.json
