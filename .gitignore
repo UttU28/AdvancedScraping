@@ -3,6 +3,7 @@ env/*
 *.json
 .env
 *.xlsx
+*.csv
 *.md
 
 
