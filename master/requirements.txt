@@ -1,8 +1,8 @@
-google-api-python-client==2.118.0
-pandas==2.2.0
-colorama==0.4.6
-tqdm==4.66.2
+pandas
+tqdm
+colorama
+python-dotenv
 openai==0.28
-xlsxwriter==3.1.0
-numpy==1.24.0
-python-dotenv==1.0.1
+requests
+google-api-python-client
+openpyxl
