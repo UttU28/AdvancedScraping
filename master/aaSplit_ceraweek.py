@@ -12,7 +12,7 @@ def split_ceraweek_data():
         for encoding in encodings:
             try:
                 # Read the CSV file with different encoding
-                df = pd.read_csv('ceraWeek.csv', encoding=encoding)
+                df = pd.read_csv('sheet2.csv', encoding=encoding)
                 print(f"Successfully read file with {encoding} encoding")
                 break
             except UnicodeDecodeError:

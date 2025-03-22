@@ -82,7 +82,7 @@ def process_entry(entry):
 
 def read_linkedin_results():
     try:
-        filepath = 'googleData/linkedin_search_ceraWeek_page_12.json'
+        filepath = 'googleData/linkedin_search_ceraWeek_page_3.json'
         # filepath = 'googleData/merged_results.json'
         print_status(f"\nProcessing LinkedIn results from: {filepath}", Fore.CYAN)
         

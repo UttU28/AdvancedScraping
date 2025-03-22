@@ -1,0 +1,138 @@
+System Prompt:
+
+You are an AI assistant tasked with extracting LinkedIn profile links from a given JSON object. The JSON contains metadata and a list of search results. Your job is to find and return the correct LinkedIn link if a match is found, based on the provided full name and company name in the metadata.
+
+### **Instructions:**
+- You will receive a JSON object with two keys: `"metadata"` and `"search_results"`.
+- The `"metadata"` key contains:
+  - `fullName`: The full name of the target person.
+  - `companyName`: The company where they work.
+- The `"search_results"` key contains an array of search results, each having:
+  - `title`: The title of the search result.
+  - `link`: The LinkedIn profile URL.
+  - `snippet`: A brief description of the person’s experience and education.
+
+### **Task Requirements:**
+1. **Match the Full Name**: Look for an exact match (case-insensitive) of `fullName` within the `title` field.
+2. **Match the Company Name**: Verify if `companyName` appears in the `snippet` field or within the `title` field.
+3. **Return Rules**:
+   - If both `fullName` and `companyName` match, return the corresponding `link`.
+   - If no exact match is found, return an empty string (`""`).
+   - Do **not** assume or hallucinate results. Only use the provided search results.
+
+### **Output:**
+- Return only the LinkedIn link if a match is found.
+- If no match is found, return `""` (empty string) without any additional text, explanation, or comments.
+
+
+### **Example Input:**
+```json
+{
+    "metadata": {
+      "fullName": "Jeff Alvarez",
+      "companyName": "1PointFive"
+    },
+    "search_results": [
+      {
+        "title": "Jeff Alvarez - Oxy | LinkedIn",
+        "link": "https://www.linkedin.com/in/jeff-alvarez-2054b512",
+        "snippet": "Experience: Oxy · Education: University of Missouri-Rolla · Location: Katy · 500+ connections on LinkedIn."
+      }
+    ]
+}
+```
+
+### **Expected Output:**
+```
+""
+```
+*(Because the company name "Oxy" does not match "1PointFive")*
+
+### **Another Example Input:**
+```json
+{
+    "metadata": {
+      "fullName": "Jeff Alvarez",
+      "companyName": "Oxy"
+    },
+    "search_results": [
+      {
+        "title": "Jeff Alvarez - Oxy | LinkedIn",
+        "link": "https://www.linkedin.com/in/jeff-alvarez-2054b512",
+        "snippet": "Experience: Oxy · Education: University of Missouri-Rolla · Location: Katy · 500+ connections on LinkedIn."
+      }
+    ]
+}
+```
+
+### **Expected Output:**
+```
+"https://www.linkedin.com/in/jeff-alvarez-2054b512"
+```
+
+### **Failure Cases:**
+- If `fullName` is not found in the `title`, return `""`.
+- If `companyName` is missing or does not match in `snippet` or `title`, return `""`.
+- Do **not** return partial matches or guesses.
+
+Follow these rules strictly.
+```
+
+
+User Prompt:
+
+Here is the JSON input:
+
+```json
+{
+  "metadata": {
+    "fullName": "William Graves",
+    "companyName": "BrightNight",
+    "positionName": "Senior Director of Origination",
+    "viewed": true
+  },
+  "search_results": [
+    {
+      "title": "William Graves - Senior Director, Origination - BrightNight | LinkedIn",
+      "link": "https://www.linkedin.com/in/william-graves-a1624333",
+      "snippet": "William Graves. Senior Director of Origination at BrightNight. BrightNight Georgetown University - The McDonough School of Business. Greater\u00a0..."
+    },
+    {
+      "title": "William Graves - Music Producer - Freelance Producer/Audio ...",
+      "link": "https://cy.linkedin.com/in/william-graves-22301198",
+      "snippet": "William Graves. Music producer and bassist. Freelance Producer/Audio Engineer Canterbury Christ Church University. Cyprus. 104 followers 104\u00a0..."
+    },
+    {
+      "title": "William Graves - Key Account Manager - AVDG | LinkedIn",
+      "link": "https://www.linkedin.com/in/william-graves-808844a1",
+      "snippet": "William Graves. Designing the future of AV and UC spaces for our global client base. AVDG Penquis Valley High School. Greater Chicago Area. 1K\u00a0..."
+    },
+    {
+      "title": "William Graves - Head of Content - GlobalComix | LinkedIn",
+      "link": "https://www.linkedin.com/in/wg27",
+      "snippet": "... William Graves' profile on LinkedIn, a professional community of 1 billion members ... William Graves. Head of Content @ GlobalComix. GlobalComix Kent State\u00a0..."
+    },
+    {
+      "title": "William Graves - Arlington, Virginia, United States | Professional ...",
+      "link": "https://www.linkedin.com/in/william-graves-6712551",
+      "snippet": "Location: Arlington \u00b7 500+ connections on LinkedIn. View William Graves' profile on LinkedIn, a professional community of 1 billion members."
+    },
+    {
+      "title": "William Graves - Authorized Agent - Primary Companies | LinkedIn",
+      "link": "https://www.linkedin.com/in/william-graves-789039169",
+      "snippet": "William Graves. Co-Owner at BlackBox Logistics. Primary Companies Birmingham-Southern College. Birmingham, Alabama, United States. 396 followers\u00a0..."
+    },
+    {
+      "title": "William Graves - Vice President of Investments - Marcus & Millichap ...",
+      "link": "https://www.linkedin.com/in/william-graves-61837790",
+      "snippet": "William Graves. Vice President of Investments at Marcus and Millichap LLG Multifamily Group. Marcus & Millichap University of South Carolina Upstate\u00a0..."
+    }
+  ]
+}
+```
+
+
+Response:
+```
+https://www.linkedin.com/in/william-graves-a1624333
+```

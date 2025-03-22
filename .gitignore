@@ -1,10 +1,11 @@
 env/
 env/*
+*/env/*
 *.json
 .env
 *.xlsx
 *.csv
 *.md
-
+__pycache__/
 
 !xtension/manifest.json
