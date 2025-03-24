@@ -34,6 +34,7 @@ def extractNamePositionCompany(ocrText):
     return people
 
 def processImagesAndUpdateJson(imageDir='screenshots', jsonPath='people.json'):
+    pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
     allPeople = []
     seen = set()
 

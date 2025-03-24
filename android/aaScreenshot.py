@@ -35,18 +35,12 @@ def checkQuitKey():
                 stopFlag = True
                 break
 
-def takeScreenshot(saveDir='screenshots', crop=True):
+def takeScreenshot(saveDir='screenshots', crop=True, count=0):
     os.makedirs(saveDir, exist_ok=True)
 
-    existingFiles = glob.glob(os.path.join(saveDir, '*.png'))
-    for file in existingFiles:
-        try:
-            os.remove(file)
-        except:
-            print(f"Could not remove {file}")
-
+    # Generate sequential filename
     fileName = 'screen000.png'
-    croppedFileName = 'screen000_cropped.png'
+    croppedFileName = f'screen{count:03d}_cropped.png'
     devicePath = f'/sdcard/{fileName}'
     tempLocalPath = os.path.join(saveDir, f'temp_{fileName}')
     croppedPath = os.path.join(saveDir, croppedFileName)
@@ -64,6 +58,7 @@ def takeScreenshot(saveDir='screenshots', crop=True):
             croppedImage = image.crop(cropBox)
             croppedImage.save(croppedPath)
 
+        # Remove the temporary file
         os.remove(tempLocalPath)
         return True
 
@@ -78,7 +73,7 @@ if __name__ == "__main__":
     keyThread.start()
 
     while not stopFlag:
-        success = takeScreenshot()
+        success = takeScreenshot(count=count)
         if not success:
             print(Fore.RED + Style.BRIGHT + "\nAn error occurred while taking screenshot. Stopping...")
             break
