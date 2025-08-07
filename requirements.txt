@@ -1,11 +1,18 @@
+# Core requirements
+openai==0.28.0
 colorama
-requests
-pandas
+google-api-python-client
 openpyxl
-ollama
-openai==0.28
-dotenv
+pandas
+python-dotenv
+requests
+tqdm
 
-fastapi
-uvicorn
+# Image processing (optional)
+Pillow
+pytesseract
 
+# Note: For image processing functionality, you may need to install the following
+# system dependencies separately:
+# - tesseract
+# - tesseract-ocr

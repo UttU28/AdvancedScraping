@@ -8,5 +8,7 @@ venv/
 *.md
 *.txt    
 __pycache__/
+response.txt
 
 !xtension/manifest.json
+node_modules/

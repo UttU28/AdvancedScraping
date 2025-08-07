@@ -86,53 +86,15 @@ Here is the JSON input:
 ```json
 {
   "metadata": {
-    "fullName": "William Graves",
-    "companyName": "BrightNight",
-    "positionName": "Senior Director of Origination",
+    "fullName": "Zaid Kahn",
+    "companyName": "NeuronGroup",
+    "positionName": "Principal",
     "viewed": true
   },
-  "search_results": [
-    {
-      "title": "William Graves - Senior Director, Origination - BrightNight | LinkedIn",
-      "link": "https://www.linkedin.com/in/william-graves-a1624333",
-      "snippet": "William Graves. Senior Director of Origination at BrightNight. BrightNight Georgetown University - The McDonough School of Business. Greater\u00a0..."
-    },
-    {
-      "title": "William Graves - Music Producer - Freelance Producer/Audio ...",
-      "link": "https://cy.linkedin.com/in/william-graves-22301198",
-      "snippet": "William Graves. Music producer and bassist. Freelance Producer/Audio Engineer Canterbury Christ Church University. Cyprus. 104 followers 104\u00a0..."
-    },
-    {
-      "title": "William Graves - Key Account Manager - AVDG | LinkedIn",
-      "link": "https://www.linkedin.com/in/william-graves-808844a1",
-      "snippet": "William Graves. Designing the future of AV and UC spaces for our global client base. AVDG Penquis Valley High School. Greater Chicago Area. 1K\u00a0..."
-    },
-    {
-      "title": "William Graves - Head of Content - GlobalComix | LinkedIn",
-      "link": "https://www.linkedin.com/in/wg27",
-      "snippet": "... William Graves' profile on LinkedIn, a professional community of 1 billion members ... William Graves. Head of Content @ GlobalComix. GlobalComix Kent State\u00a0..."
-    },
-    {
-      "title": "William Graves - Arlington, Virginia, United States | Professional ...",
-      "link": "https://www.linkedin.com/in/william-graves-6712551",
-      "snippet": "Location: Arlington \u00b7 500+ connections on LinkedIn. View William Graves' profile on LinkedIn, a professional community of 1 billion members."
-    },
-    {
-      "title": "William Graves - Authorized Agent - Primary Companies | LinkedIn",
-      "link": "https://www.linkedin.com/in/william-graves-789039169",
-      "snippet": "William Graves. Co-Owner at BlackBox Logistics. Primary Companies Birmingham-Southern College. Birmingham, Alabama, United States. 396 followers\u00a0..."
-    },
-    {
-      "title": "William Graves - Vice President of Investments - Marcus & Millichap ...",
-      "link": "https://www.linkedin.com/in/william-graves-61837790",
-      "snippet": "William Graves. Vice President of Investments at Marcus and Millichap LLG Multifamily Group. Marcus & Millichap University of South Carolina Upstate\u00a0..."
-    }
-  ]
+  "search_results": []
 }
 ```
 
 
 Response:
-```
-https://www.linkedin.com/in/william-graves-a1624333
-```
+""
