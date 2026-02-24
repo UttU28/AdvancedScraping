@@ -12,3 +12,7 @@ response.txt
 
 !xtension/manifest.json
 node_modules/
+
+
+chromeData/
+googleData/
