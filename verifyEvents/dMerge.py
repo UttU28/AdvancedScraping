@@ -7,7 +7,7 @@ Apply a blacklist to extraction results:
 
 Usage (from verifyEvents folder):
   python apply_blacklist.py
-  python apply_blacklist.py blacklist.txt
+  python apply_blacklist.py removeLinks.txt
 """
 import json
 import sys
@@ -24,7 +24,7 @@ resultsCleanPath = verifyEventsDir / "extraction_results_clean.json"
 resultsSinglePath = verifyEventsDir / "extraction_results_single.json"
 resultsMultiPath = verifyEventsDir / "extraction_results_multi.json"
 resultsRemovedPath = verifyEventsDir / "extraction_results_removed.json"
-defaultBlacklistPath = verifyEventsDir / "blacklist.txt"
+defaultBlacklistPath = verifyEventsDir / "removeLinks.txt"
 
 
 def loadBlacklist(path: Path) -> set[str]:

@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 load_dotenv(CRAWLER_DIR / ".env")
 
 from selenium.webdriver.common.by import By
-from app import (
+from server import (
     startChrome, setupChromeDriver, cleanupChrome, read_events_csv,
     chromeDriverPath, chromeAppPath, chromeUserDataDir, debuggingPort,
 )

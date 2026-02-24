@@ -13,7 +13,7 @@ TXT_DIR = CRAWLER_DIR / "txtDir"
 
 from dotenv import load_dotenv
 import openai
-from app import read_events_csv
+from server import read_events_csv
 
 load_dotenv(CRAWLER_DIR / ".env")
 
