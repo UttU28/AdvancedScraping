@@ -6,7 +6,33 @@ import json
 import os
 import re
 import sys
+import time
 from pathlib import Path
+
+# Transient errors worth retrying
+def _retryable_exceptions():
+    excs = [ConnectionError, TimeoutError]
+    try:
+        from http.client import RemoteDisconnected
+        excs.append(RemoteDisconnected)
+    except ImportError:
+        pass
+    try:
+        from requests.exceptions import ConnectionError as ReqConnectionError, ReadTimeout
+        excs.extend([ReqConnectionError, ReadTimeout])
+    except ImportError:
+        pass
+    try:
+        from urllib3.exceptions import ProtocolError
+        excs.append(ProtocolError)
+    except ImportError:
+        pass
+    return tuple(excs)
+
+
+RETRYABLE = _retryable_exceptions()
+MAX_RETRIES = 5
+RETRY_DELAY_BASE = 2  # seconds
 
 CRAWLER_DIR = Path(__file__).resolve().parent
 TXT_DIR = CRAWLER_DIR / "txtDir"
@@ -17,7 +43,7 @@ from server import read_events_csv
 
 load_dotenv(CRAWLER_DIR / ".env")
 
-openai.api_key = "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"
+openai.api_key = "sk-proj---"
 
 EXTRACTION_SYSTEM_PROMPT = """You are analyzing scraped visible text from a single webpage. Your task is to:
 
@@ -50,27 +76,39 @@ def get_url_for_txt_file(txt_path: Path) -> str:
 
 def extract_with_llm(page_text: str) -> dict:
     model = os.getenv("OPENAI_EXTRACT_MODEL", "gpt-3.5-turbo")
-    try:
-        response = openai.ChatCompletion.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": EXTRACTION_SYSTEM_PROMPT},
-                {"role": "user", "content": f"Analyze this scraped page text and respond with the JSON object only.\n\n---\n{page_text[:12000]}\n---"},
-            ],
-            temperature=0.1,
-            top_p=1,
-            frequency_penalty=0,
-            presence_penalty=0,
-        )
-        raw = (response["choices"][0]["message"]["content"] or "").strip()
-        if "```" in raw:
-            m = re.search(r"```(?:json)?\s*([\s\S]*?)```", raw)
-            if m:
-                raw = m.group(1).strip()
-        return json.loads(raw)
-    except Exception as e:
-        print(f"Error: {e}")
-        raise
+    last_error = None
+    for attempt in range(MAX_RETRIES):
+        try:
+            response = openai.ChatCompletion.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": EXTRACTION_SYSTEM_PROMPT},
+                    {"role": "user", "content": f"Analyze this scraped page text and respond with the JSON object only.\n\n---\n{page_text[:12000]}\n---"},
+                ],
+                temperature=0.1,
+                top_p=1,
+                frequency_penalty=0,
+                presence_penalty=0,
+            )
+            raw = (response["choices"][0]["message"]["content"] or "").strip()
+            if "```" in raw:
+                m = re.search(r"```(?:json)?\s*([\s\S]*?)```", raw)
+                if m:
+                    raw = m.group(1).strip()
+            return json.loads(raw)
+        except RETRYABLE as e:
+            last_error = e
+            if attempt < MAX_RETRIES - 1:
+                delay = RETRY_DELAY_BASE * (2 ** attempt)
+                print(f"  Retry {attempt + 1}/{MAX_RETRIES} in {delay}s: {e}")
+                time.sleep(delay)
+            else:
+                print(f"Error: {e}")
+                raise
+        except Exception as e:
+            print(f"Error: {e}")
+            raise
+    raise last_error
 
 
 def run_extraction(txt_path: Path, results_path: Path):

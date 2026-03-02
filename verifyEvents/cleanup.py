@@ -3,7 +3,9 @@ Fix and clean extraction results JSON:
 - Read from extraction_results.json or extraction_results copy.json
 - Fill missing URLs by backtracking from source_txt into source.csv
 - Keep only site_type == "event_page"
+- Exclude blacklisted URLs (from removeLinks.txt); these go to removed file only
 - Remove duplicates: same source_txt + start_date + end_date (keep first)
+- Remove duplicates: same url + start_date + end_date (keep first)
 - Add numeric id to each row
 - Split output:
   - extraction_results_single.json: URLs with exactly one event (count at top)
@@ -26,6 +28,7 @@ init(autoreset=True)
 
 verifyEventsDir = Path(__file__).resolve().parent
 csvPath = verifyEventsDir / "source.csv"
+removeLinksPath = verifyEventsDir / "removeLinks.txt"
 
 # Treat the original as read-only; derive cleaned data into new files
 inputCopyPath = verifyEventsDir / "extraction_results.json"
@@ -33,6 +36,30 @@ outputCleanPath = verifyEventsDir / "extraction_results_clean.json"
 outputSinglePath = verifyEventsDir / "extraction_results_single.json"
 outputMultiPath = verifyEventsDir / "extraction_results_multi.json"
 removedPath = verifyEventsDir / "extraction_results_removed.json"
+
+
+def loadBlacklist() -> set[str]:
+    """Load blacklisted URL patterns from removeLinks.txt. Lines starting with # are ignored."""
+    blacklist: set[str] = set()
+    if not removeLinksPath.exists():
+        return blacklist
+    with removeLinksPath.open(encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if line and not line.startswith("#"):
+                blacklist.add(line.lower())
+    return blacklist
+
+
+def isUrlBlacklisted(url: str, blacklist: set[str]) -> bool:
+    """Return True if url matches any blacklist entry (substring match either way)."""
+    if not url:
+        return False
+    urlLower = url.lower()
+    for entry in blacklist:
+        if entry in urlLower or urlLower in entry:
+            return True
+    return False
 
 
 def loadEventsCsv() -> list[dict]:
@@ -102,9 +129,11 @@ def main():
         return
 
     csvRows = loadEventsCsv()
+    blacklist = loadBlacklist()
     cleanedEvents: list[dict] = []
     removedEvents: list[dict] = []
-    seenDedupKeys: set[tuple[str, str, str]] = set()  # (source_txt, start_date, end_date)
+    seenBySource: set[tuple[str, str, str]] = set()  # (source_txt, start_date, end_date)
+    seenByUrl: set[tuple[str, str, str]] = set()  # (url, start_date, end_date)
 
     for record in rawResults:
         if not isinstance(record, dict):
@@ -123,16 +152,27 @@ def main():
         sourceTxt = record.get("source_txt") or ""
         startDate = (record.get("start_date") or "").strip()
         endDate = (record.get("end_date") or "").strip()
-        dedupKey = (sourceTxt, startDate, endDate)
-        if dedupKey in seenDedupKeys:
+
+        sourceDedupKey = (sourceTxt, startDate, endDate)
+        if sourceDedupKey in seenBySource:
             removedEvents.append({**record, "removed_reason": "duplicate_source_start_end"})
             continue
-        seenDedupKeys.add(dedupKey)
+        seenBySource.add(sourceDedupKey)
 
         url = (record.get("url") or "").strip()
         if not url:
             url = inferUrlFromSource(sourceTxt, csvRows)
             record["url"] = url
+
+        if isUrlBlacklisted(url, blacklist):
+            removedEvents.append({**record, "removed_reason": "blacklisted_url"})
+            continue
+
+        urlDedupKey = (url, startDate, endDate)
+        if urlDedupKey in seenByUrl:
+            removedEvents.append({**record, "removed_reason": "duplicate_url_start_end"})
+            continue
+        seenByUrl.add(urlDedupKey)
 
         cleanedEvents.append(record)
 

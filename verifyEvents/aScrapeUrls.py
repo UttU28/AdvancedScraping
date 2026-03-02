@@ -1,6 +1,7 @@
 """
 Open Chrome, visit each URL from source.csv one by one,
 scrape page text and save to verifyEvents/txtDir as *_homepage.txt.
+URLs in removeLinks.txt (blacklist) are skipped.
 """
 import re
 from pathlib import Path
@@ -8,6 +9,7 @@ from time import sleep
 
 CRAWLER_DIR = Path(__file__).resolve().parent
 TXT_DIR = CRAWLER_DIR / "txtDir"
+REMOVE_LINKS_PATH = CRAWLER_DIR / "removeLinks.txt"
 
 from dotenv import load_dotenv
 load_dotenv(CRAWLER_DIR / ".env")
@@ -17,6 +19,27 @@ from server import (
     startChrome, setupChromeDriver, cleanupChrome, read_events_csv,
     chromeDriverPath, chromeAppPath, chromeUserDataDir, debuggingPort,
 )
+
+
+def load_blacklist() -> set[str]:
+    """Load blacklisted URL patterns from removeLinks.txt. Lines starting with # are ignored."""
+    blacklist: set[str] = set()
+    if not REMOVE_LINKS_PATH.exists():
+        return blacklist
+    with REMOVE_LINKS_PATH.open(encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if line and not line.startswith("#"):
+                blacklist.add(line.lower())
+    return blacklist
+
+
+def is_url_blacklisted(url: str, blacklist: set[str]) -> bool:
+    """Return True if url matches any blacklist entry (substring match either way)."""
+    if not url:
+        return False
+    url_lower = url.lower()
+    return any(entry in url_lower or url_lower in entry for entry in blacklist)
 
 
 def sanitize_filename(name: str, max_len: int = 80) -> str:
@@ -30,6 +53,7 @@ def main():
     if not rows:
         print("No rows in source.csv.")
         return
+    blacklist = load_blacklist()
     TXT_DIR.mkdir(parents=True, exist_ok=True)
 
     # Detect already-scraped pages so we can resume from where we left off
@@ -52,6 +76,10 @@ def main():
 
             if not url:
                 print(f"[{i}/{total}] Skipping (no URL): {title}")
+                continue
+
+            if is_url_blacklisted(url, blacklist):
+                print(f"[{i}/{total}] Skipping (blacklisted): {title}")
                 continue
 
             # Skip if we've already scraped this event (file exists and non-empty)
