@@ -1,25 +1,9 @@
-"""
-Fix and clean extraction results JSON:
-- Read from extraction_results.json or extraction_results copy.json
-- Fill missing URLs by backtracking from source_txt into source.csv
-- Keep only site_type == "event_page"
-- Exclude blacklisted URLs (from removeLinks.txt); these go to removed file only
-- Remove duplicates: same source_txt + start_date + end_date (keep first)
-- Remove duplicates: same url + start_date + end_date (keep first)
-- Add numeric id to each row
-- Split output:
-  - extraction_results_single.json: URLs with exactly one event (count at top)
-  - extraction_results_multi.json: URLs with multiple events; one entry per URL with all its events (count at top)
-
-Usage (from verifyEvents folder):
-  python cleanup.py
-  python cleanup.py "extraction_results copy.json"
-"""
 import csv
 import json
 import re
 import sys
 from collections import defaultdict
+from datetime import datetime
 from pathlib import Path
 
 from colorama import Fore, Style, init
@@ -29,6 +13,8 @@ init(autoreset=True)
 verifyEventsDir = Path(__file__).resolve().parent
 csvPath = verifyEventsDir / "source.csv"
 removeLinksPath = verifyEventsDir / "removeLinks.txt"
+
+MAX_EVENT_DAYS = 5  # Events longer than this are removed
 
 # Treat the original as read-only; derive cleaned data into new files
 inputCopyPath = verifyEventsDir / "extraction_results.json"
@@ -80,6 +66,17 @@ def hasCjk(text: str) -> bool:
     if not text:
         return False
     return bool(re.search(r"[\u4e00-\u9fff]", text))
+
+
+def parseDate(raw: str):
+    """Parse mm/dd/yyyy to datetime.date, or return None if not parseable or TBD."""
+    value = (raw or "").strip()
+    if not value or value.upper() == "TBD":
+        return None
+    try:
+        return datetime.strptime(value, "%m/%d/%Y").date()
+    except Exception:
+        return None
 
 
 def inferUrlFromSource(sourceTxt: str, csvRows: list[dict]) -> str:
@@ -152,6 +149,16 @@ def main():
         sourceTxt = record.get("source_txt") or ""
         startDate = (record.get("start_date") or "").strip()
         endDate = (record.get("end_date") or "").strip()
+
+        if startDate and endDate and startDate == endDate:
+            removedEvents.append({**record, "removed_reason": "same_day_event"})
+            continue
+
+        startParsed = parseDate(startDate)
+        endParsed = parseDate(endDate)
+        if startParsed and endParsed and (endParsed - startParsed).days > MAX_EVENT_DAYS:
+            removedEvents.append({**record, "removed_reason": "event_too_long"})
+            continue
 
         sourceDedupKey = (sourceTxt, startDate, endDate)
         if sourceDedupKey in seenBySource:

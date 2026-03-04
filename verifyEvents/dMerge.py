@@ -20,6 +20,8 @@ init(autoreset=True)
 
 verifyEventsDir = Path(__file__).resolve().parent
 
+NOT_MORE_THAN = 15  # URLs with more than this many events are added to removeLinks and excluded from merge
+
 resultsCleanPath = verifyEventsDir / "extraction_results_clean.json"
 resultsSinglePath = verifyEventsDir / "extraction_results_single.json"
 resultsMultiPath = verifyEventsDir / "extraction_results_multi.json"
@@ -46,13 +48,25 @@ def isBlacklisted(url: str, blacklist: set[str]) -> bool:
     return any(entry in url or url in entry for entry in blacklist)
 
 
+def appendToRemoveLinks(path: Path, url: str) -> None:
+    """Append URL to removeLinks.txt if not already present."""
+    url = (url or "").strip()
+    if not url:
+        return
+    existing = loadBlacklist(path)
+    urlLower = url.lower()
+    if urlLower in existing or any(entry in urlLower or urlLower in entry for entry in existing):
+        return
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write("\n" + url + "\n")
+
+
 def main():
     blacklistArg = sys.argv[1].strip() if len(sys.argv) > 1 and sys.argv[1].strip() else defaultBlacklistPath.name
     blacklistPath = verifyEventsDir / blacklistArg
     blacklist = loadBlacklist(blacklistPath)
     if not blacklist:
-        print(f"{Fore.YELLOW}Merge: no blacklist entries in {blacklistPath.name} (or file missing). Exiting.{Style.RESET_ALL}")
-        return
+        print(f"{Fore.YELLOW}Merge: no blacklist entries in {blacklistPath.name} (or file missing). Proceeding for too-many-events check only.{Style.RESET_ALL}")
 
     if not resultsCleanPath.exists():
         print(f"{Fore.RED}Merge: {resultsCleanPath.name} not found. Run cleanup first.{Style.RESET_ALL}")
@@ -75,17 +89,44 @@ def main():
         else:
             keptEvents.append(record)
 
-    for idx, record in enumerate(keptEvents, 1):
-        record["id"] = idx
+    # Drop low-signal events where start_date == end_date and location is explicitly "TBD"
+    filteredEvents: list[dict] = []
+    for record in keptEvents:
+        location = (record.get("location") or "").strip().lower()
+        start_date = (record.get("start_date") or "").strip()
+        end_date = (record.get("end_date") or "").strip()
+        if location == "tbd" and start_date and end_date and start_date == end_date:
+            blacklistedEvents.append({**record, "removed_reason": "tbd_same_day"})
+        else:
+            filteredEvents.append(record)
+    keptEvents = filteredEvents
 
     groupedByUrl: dict[str, list[dict]] = defaultdict(list)
     for record in keptEvents:
         url = (record.get("url") or "").strip()
         groupedByUrl[url].append(record)
 
+    # URLs with more than NOT_MORE_THAN events: add to removeLinks, exclude from merge, move to removed
+    urlsWithTooMany: set[str] = set()
+    for url, events in groupedByUrl.items():
+        if len(events) > NOT_MORE_THAN:
+            urlsWithTooMany.add(url)
+            appendToRemoveLinks(blacklistPath, url)
+            for record in events:
+                blacklistedEvents.append({**record, "removed_reason": "too_many_events"})
+    if urlsWithTooMany:
+        print(f"{Fore.YELLOW}Merge: {len(urlsWithTooMany)} URL(s) with >{NOT_MORE_THAN} events added to {blacklistPath.name} and excluded{Style.RESET_ALL}")
+
+    # Exclude too-many URLs from kept events
+    keptEvents = [r for r in keptEvents if (r.get("url") or "").strip() not in urlsWithTooMany]
+    for idx, record in enumerate(keptEvents, 1):
+        record["id"] = idx
+
     singleEvents: list[dict] = []
     multiEntries: list[dict] = []
     for url, events in groupedByUrl.items():
+        if url in urlsWithTooMany:
+            continue
         if len(events) == 1:
             singleEvents.append(events[0])
         else:

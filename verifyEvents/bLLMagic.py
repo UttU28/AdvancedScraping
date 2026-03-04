@@ -5,9 +5,16 @@ and extract event name + dates. Save to extraction_results.json.
 import json
 import os
 import re
+import shutil
 import sys
 import time
 from pathlib import Path
+
+from colorama import Fore, Style, init as colorama_init
+from tqdm.auto import tqdm
+
+
+USE_MODEL = "GOOGLE"  # or "OPENAI"
 
 # Transient errors worth retrying
 def _retryable_exceptions():
@@ -43,7 +50,14 @@ from server import read_events_csv
 
 load_dotenv(CRAWLER_DIR / ".env")
 
-openai.api_key = "sk-proj---"
+# Load API keys from environment; support both OpenAI and Google Gemini
+openai.api_key = os.getenv("OPENAI_API_KEY", "")
+
+try:
+    # google-genai 1.x (new Gemini SDK)
+    from google import genai as google_genai  # type: ignore[attr-defined]
+except Exception:
+    google_genai = None  # type: ignore[assignment]
 
 EXTRACTION_SYSTEM_PROMPT = """You are analyzing scraped visible text from a single webpage. Your task is to:
 
@@ -74,8 +88,8 @@ def get_url_for_txt_file(txt_path: Path) -> str:
     return ""
 
 
-def extract_with_llm(page_text: str) -> dict:
-    model = os.getenv("OPENAI_EXTRACT_MODEL", "gpt-3.5-turbo")
+def _extract_with_openai(page_text: str) -> dict:
+    model = os.getenv("OPENAI_EXTRACT_MODEL", "gpt-4o-mini")
     last_error = None
     for attempt in range(MAX_RETRIES):
         try:
@@ -83,7 +97,14 @@ def extract_with_llm(page_text: str) -> dict:
                 model=model,
                 messages=[
                     {"role": "system", "content": EXTRACTION_SYSTEM_PROMPT},
-                    {"role": "user", "content": f"Analyze this scraped page text and respond with the JSON object only.\n\n---\n{page_text[:12000]}\n---"},
+                    {
+                        "role": "user",
+                        "content": (
+                            "Analyze this scraped page text and respond with the "
+                            "JSON object only.\n\n---\n"
+                            f"{page_text[:12000]}\n---"
+                        ),
+                    },
                 ],
                 temperature=0.1,
                 top_p=1,
@@ -109,6 +130,83 @@ def extract_with_llm(page_text: str) -> dict:
             print(f"Error: {e}")
             raise
     raise last_error
+
+
+def _extract_with_gemini(page_text: str) -> dict:
+    if google_genai is None:
+        raise RuntimeError("google-genai SDK is not installed; run `pip install google-genai` in verifyEvents env.")
+
+    api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        raise RuntimeError("GOOGLE_API_KEY or GEMINI_API_KEY is not set in verifyEvents/.env")
+
+    model_name = os.getenv("GEMINI_EXTRACT_MODEL", "models/gemini-flash-lite-latest")
+
+    client = google_genai.Client(api_key=api_key)
+
+    prompt = (
+        EXTRACTION_SYSTEM_PROMPT
+        + "\n\nAnalyze this scraped page text and respond with the JSON object only.\n\n---\n"
+        + page_text[:12000]
+        + "\n---"
+    )
+
+    last_error = None
+    for attempt in range(MAX_RETRIES):
+        try:
+            resp = client.models.generate_content(
+                model=model_name,
+                contents=[prompt],
+                config=google_genai.types.GenerateContentConfig(  # type: ignore[attr-defined]
+                    temperature=0.1,
+                ),
+            )
+            text = resp.text or ""
+            raw = text.strip()
+            if "```" in raw:
+                m = re.search(r"```(?:json)?\s*([\s\S]*?)```", raw)
+                if m:
+                    raw = m.group(1).strip()
+            return json.loads(raw)
+        except RETRYABLE as e:
+            last_error = e
+            if attempt < MAX_RETRIES - 1:
+                delay = RETRY_DELAY_BASE * (2 ** attempt)
+                print(f"  Retry {attempt + 1}/{MAX_RETRIES} in {delay}s (Gemini, network): {e}")
+                time.sleep(delay)
+            else:
+                print(f"Error (Gemini, network): {e}")
+                raise
+        except Exception as e:
+            # Treat 5xx / UNAVAILABLE errors from the Gemini API itself as retryable too
+            msg = str(e)
+            status_code = getattr(e, "status_code", None)
+            is_server_side = False
+            try:
+                if status_code is not None and 500 <= int(status_code) < 600:
+                    is_server_side = True
+            except Exception:
+                pass
+            if "UNAVAILABLE" in msg or "try again later" in msg:
+                is_server_side = True
+
+            if is_server_side and attempt < MAX_RETRIES - 1:
+                last_error = e
+                delay = RETRY_DELAY_BASE * (2 ** attempt)
+                print(f"  Retry {attempt + 1}/{MAX_RETRIES} in {delay}s (Gemini, 5xx): {e}")
+                time.sleep(delay)
+                continue
+
+            print(f"Error (Gemini): {e}")
+            raise
+
+    raise last_error
+
+
+def extract_with_llm(page_text: str) -> dict:
+    if USE_MODEL.upper() == "GOOGLE":
+        return _extract_with_gemini(page_text)
+    return _extract_with_openai(page_text)
 
 
 def run_extraction(txt_path: Path, results_path: Path):
@@ -151,9 +249,17 @@ def run_extraction(txt_path: Path, results_path: Path):
 
 
 def main():
-    if not openai.api_key:
-        print("OPENAI_API_KEY is not set (verifyEvents/.env)")
-        return
+    # Initialize color output once
+    colorama_init(autoreset=True)
+
+    if USE_MODEL.upper() == "OPENAI":
+        if not openai.api_key:
+            print("OPENAI_API_KEY is not set (verifyEvents/.env)")
+            return
+    else:
+        if not (os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")):
+            print("GOOGLE_API_KEY or GEMINI_API_KEY is not set (verifyEvents/.env)")
+            return
 
     results_path = CRAWLER_DIR / "extraction_results.json"
 
@@ -173,8 +279,12 @@ def main():
             print(f"File not found: {txt_path}")
             return
         result = run_extraction(txt_path, results_path)
-        print(json.dumps(result, indent=2))
-        print(f"Saved to {results_path}")
+        print(Fore.GREEN + json.dumps(result, indent=2))
+        print(Fore.GREEN + f"Saved to {results_path}")
+        if results_path.exists():
+            backup_path = results_path.with_suffix(results_path.suffix + ".bak")
+            shutil.copy2(results_path, backup_path)
+            print(Fore.CYAN + f"Backup saved to {backup_path.name}")
         return
 
     # Batch mode: all *_homepage.txt inside txtDir
@@ -185,10 +295,40 @@ def main():
     if not txt_files:
         print(f"No *_homepage.txt in {TXT_DIR}.")
         return
-    for i, p in enumerate(txt_files, 1):
-        print(f"[{i}/{len(txt_files)}] {p.name} ...")
-        run_extraction(p, results_path)
-    print(f"Done. Results in {results_path}")
+
+    total = len(txt_files)
+    processed = 0
+    failed = 0
+
+    with tqdm(total=total, unit="file", desc="LLM extraction") as pbar:
+        for p in txt_files:
+            pbar.set_postfix(current=p.name, processed=processed, failed=failed)
+            try:
+                run_extraction(p, results_path)
+                processed += 1
+            except Exception as exc:
+                failed += 1
+                # Show a concise, colored error but keep going
+                print(
+                    Fore.RED
+                    + f"\n[ERROR] {p.name}: {exc}"
+                )
+            finally:
+                pbar.set_postfix(current=p.name, processed=processed, failed=failed)
+                pbar.update(1)
+
+    summary_color = Fore.GREEN if failed == 0 else Fore.YELLOW
+    print(
+        summary_color
+        + f"Extraction complete. Processed: {processed}, Failed: {failed}. "
+        f"Results in {results_path}"
+    )
+
+    # Create backup at the end
+    if results_path.exists():
+        backup_path = results_path.with_suffix(results_path.suffix + ".bak")
+        shutil.copy2(results_path, backup_path)
+        print(Fore.CYAN + f"Backup saved to {backup_path.name}")
 
 
 if __name__ == "__main__":

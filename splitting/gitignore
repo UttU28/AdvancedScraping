@@ -1,0 +1,9 @@
+
+
+**/env/
+.env
+logs/
+package-lock.json
+**.pdf
+**.csv
+**.xlsx
