@@ -13,10 +13,10 @@ from colorama import Fore, Style, init
 init(autoreset=True)
 
 # Configuration
-CROP_LEFT = 100
-CROP_TOP = 230
+CROP_LEFT = 185
+CROP_TOP = 400
 CROP_RIGHT_OFFSET = 100
-CROP_BOTTOM_OFFSET = 70
+CROP_BOTTOM_OFFSET = 20
 
 SCROLL_START_X = 500
 SCROLL_START_Y = 800

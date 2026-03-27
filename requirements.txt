@@ -6,6 +6,7 @@ openpyxl
 pandas
 python-dotenv
 requests
+beautifulsoup4
 tqdm
 
 # Image processing (optional)
