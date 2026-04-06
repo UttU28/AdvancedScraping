@@ -1,94 +1,122 @@
+#!/usr/bin/env python3
 """
-Parse advisory-board HTML (team-member blocks) and write Name, Company, Position, LinkedIn CSV.
+Parse a Pinetool / Energy Tech Summit speakers list HTML export (e.g. aa.html)
+into CSV: Name, Company, Position, Link.
 
-Input: aa.html next to this script (or path as first CLI arg).
-Output: advisory_board.csv in the same folder.
+The Link column is the full profile URL like:
+  https://events.pinetool.ai/3652/#speakers/1043552?referrer%5Bpathname%5D=...
 """
 
 from __future__ import annotations
 
 import argparse
 import csv
-import html
+import html as html_module
+import re
 import sys
 from pathlib import Path
 
 from bs4 import BeautifulSoup
 
-_ROOT = Path(__file__).resolve().parent
+SPEAKER_FRAGMENT_RE = re.compile(r"^#speakers/\d+", re.I)
 
 
-def _split_position_company(raw: str) -> tuple[str, str]:
-    """Position text is usually 'Title @ Company'; split on first ' @ '."""
-    text = html.unescape(raw).strip()
-    if not text:
-        return "", ""
-    if " @ " in text:
-        pos, company = text.split(" @ ", 1)
-        return pos.strip(), company.strip()
-    return text, ""
+def _text(el) -> str:
+    if el is None:
+        return ""
+    return " ".join(el.get_text().split())
 
 
-def parse_team_members(html_text: str) -> list[dict[str, str]]:
-    soup = BeautifulSoup(html_text, "html.parser")
+def parse_row(anchor, base_url: str) -> dict[str, str] | None:
+    raw_href = (anchor.get("href") or "").strip()
+    if not raw_href:
+        return None
+    href = html_module.unescape(raw_href)
+    if not SPEAKER_FRAGMENT_RE.match(href.split("?", 1)[0]):
+        return None
+
+    info = anchor.select_one(".info")
+    if info is None:
+        return None
+
+    name = _text(info.find("h3"))
+    h4s = info.find_all("h4")
+    if len(h4s) >= 2:
+        position = " ".join(_text(h) for h in h4s[:-1]).strip()
+        company = _text(h4s[-1])
+    elif len(h4s) == 1:
+        position = _text(h4s[0])
+        company = ""
+    else:
+        position, company = "", ""
+
+    base = base_url.rstrip("/")
+    link = f"{base}/{href}"
+
+    return {
+        "Name": name,
+        "Company": company,
+        "Position": position,
+        "Link": link,
+    }
+
+
+def extract_rows(soup: BeautifulSoup, base_url: str) -> list[dict[str, str]]:
+    seen: set[str] = set()
     rows: list[dict[str, str]] = []
-    for member in soup.select("div.team-member"):
-        h4 = member.select_one("h4.light")
-        pos_el = member.select_one("div.position")
-        link_el = member.select_one('a[href*="linkedin"]')
-        if not h4:
+    for a in soup.select('a[href^="#speakers/"]'):
+        href = html_module.unescape((a.get("href") or "").strip())
+        key = href.split("?", 1)[0]
+        if key in seen:
             continue
-        name = html.unescape(h4.get_text(strip=True))
-        pos_raw = pos_el.get_text(strip=True) if pos_el else ""
-        position, company = _split_position_company(pos_raw)
-        linkedin = (link_el.get("href") or "").strip() if link_el else ""
-        rows.append(
-            {
-                "Name": name,
-                "Company": company,
-                "Position": position,
-                "LinkedIn": linkedin,
-            }
-        )
+        row = parse_row(a, base_url)
+        if row:
+            seen.add(key)
+            rows.append(row)
     return rows
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Export team HTML to CSV.")
-    parser.add_argument(
+def main() -> int:
+    p = argparse.ArgumentParser(description="Speakers HTML → CSV (Name, Company, Position, Link).")
+    p.add_argument(
         "input_html",
         nargs="?",
-        default=str(_ROOT / "aa.html"),
-        help="Path to HTML file (default: aa.html next to this script)",
+        default="aa.html",
+        type=Path,
+        help="Saved HTML (default: aa.html)",
     )
-    parser.add_argument(
+    p.add_argument(
         "-o",
         "--output",
-        default=str(_ROOT / "advisory_board.csv"),
-        help="Output CSV path (default: advisory_board.csv)",
+        type=Path,
+        default=Path("speakers_from_html.csv"),
+        help="Output CSV path",
     )
-    args = parser.parse_args()
+    p.add_argument(
+        "-b",
+        "--base-url",
+        default="https://events.pinetool.ai/3652",
+        help="Site base for Link column (default: https://events.pinetool.ai/3652)",
+    )
+    args = p.parse_args()
 
-    path = Path(args.input_html)
+    path: Path = args.input_html
     if not path.is_file():
-        print(f"File not found: {path}", file=sys.stderr)
-        sys.exit(1)
+        print(f"Not found: {path}", file=sys.stderr)
+        return 1
 
-    html_text = path.read_text(encoding="utf-8", errors="replace")
-    rows = parse_team_members(html_text)
-    if not rows:
-        print("No div.team-member entries found.", file=sys.stderr)
-        sys.exit(1)
+    soup = BeautifulSoup(path.read_text(encoding="utf-8", errors="replace"), "html.parser")
+    rows = extract_rows(soup, args.base_url)
 
-    out = Path(args.output)
-    fieldnames = ["Name", "Company", "Position", "LinkedIn"]
-    with out.open("w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=fieldnames)
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    with args.output.open("w", newline="", encoding="utf-8-sig") as f:
+        w = csv.DictWriter(f, fieldnames=["Name", "Company", "Position", "Link"])
         w.writeheader()
         w.writerows(rows)
 
-    print(f"Wrote {len(rows)} rows to {out}")
+    print(f"Wrote {len(rows)} rows to {args.output.resolve()}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

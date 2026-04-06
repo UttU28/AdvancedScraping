@@ -7,6 +7,10 @@ pandas
 python-dotenv
 requests
 beautifulsoup4
+selenium
+webdriver-manager
+customtkinter
+windnd
 tqdm
 
 # Image processing (optional)
