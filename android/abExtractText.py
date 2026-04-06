@@ -4,7 +4,26 @@ from PIL import Image
 import glob
 import json
 import os
+import re
 from tqdm import tqdm
+
+
+def cleanField(value):
+    if not value:
+        return ''
+    value = str(value).replace('|', ' ').strip()
+    value = re.sub(r'\.{2,}$', '', value)  # remove OCR-truncated trailing dots
+    value = re.sub(r'^[\\/\)\]\}\|,\-:\.;]+', '', value)
+    value = re.sub(r'\s+', ' ', value).strip()
+    return value
+
+
+def normalizedKey(name, position, company):
+    return (
+        cleanField(name).lower(),
+        cleanField(position).lower(),
+        cleanField(company).lower(),
+    )
 
 
 def extractNamePositionCompany(ocrText):
@@ -14,17 +33,25 @@ def extractNamePositionCompany(ocrText):
     i = 0
 
     while i < len(lines) - 1:
-        name = lines[i]
+        name = cleanField(lines[i])
         roleLine = lines[i + 1]
 
-        if ' at ' in roleLine:
-            position, company = roleLine.split(' at ', 1)
-            key = (name.lower(), position.lower(), company.lower())
-            if key not in seen:
+        if ' at ' in roleLine or ' - ' in roleLine or '|' in roleLine:
+            if ' at ' in roleLine:
+                position, company = roleLine.split(' at ', 1)
+            elif ' - ' in roleLine:
+                position, company = roleLine.split(' - ', 1)
+            else:
+                position, company = roleLine.split('|', 1)
+
+            position = cleanField(position)
+            company = cleanField(company)
+            key = normalizedKey(name, position, company)
+            if key not in seen and name and position and company:
                 people.append({
                     'name': name,
-                    'position': position.strip(),
-                    'company': company.strip()
+                    'position': position,
+                    'company': company
                 })
                 seen.add(key)
             i += 2
@@ -43,7 +70,7 @@ def processImagesAndUpdateJson(imageDir='screenshots', jsonPath='people.json'):
             with open(jsonPath, 'r') as f:
                 allPeople = json.load(f)
                 for p in allPeople:
-                    seen.add((p['name'].lower(), p['position'].lower(), p['company'].lower()))
+                    seen.add(normalizedKey(p.get('name', ''), p.get('position', ''), p.get('company', '')))
         except json.JSONDecodeError:
             allPeople = []
 
@@ -56,14 +83,19 @@ def processImagesAndUpdateJson(imageDir='screenshots', jsonPath='people.json'):
             people = extractNamePositionCompany(text)
 
             for person in people:
-                key = (person['name'].lower(), person['position'].lower(), person['company'].lower())
+                person = {
+                    'name': cleanField(person.get('name', '')),
+                    'position': cleanField(person.get('position', '')),
+                    'company': cleanField(person.get('company', '')),
+                }
+                key = normalizedKey(person['name'], person['position'], person['company'])
                 if key not in seen:
                     allPeople.append(person)
                     seen.add(key)
 
             with open(jsonPath, 'w') as f:
                 json.dump(allPeople, f, indent=4)
-        except Exception as e:
+        except Exception:
             continue
 
     return len(allPeople)

@@ -10,16 +10,25 @@ from openpyxl.worksheet.table import Table, TableStyleInfo
 
 
 URL_PATTERN = re.compile(r"^https?://", re.IGNORECASE)
+FULL_NAME_COL = "Full Name"
+NAME_COL = "Name"
+COMPANY_COL = "Company"
+WEBSITE_COL = "Website"
+POSITION_COL = "Position"
+LINKEDIN_COL = "LinkedIn"
+EMAIL_COL = "Email"
+POSITION_TYPO_COL = "Postion"
+LINKEDIN_TYPO_COL = "Linkedin "
 
 COL_WIDTHS = {
-    "Full Name": 30,
-    "Company": 30,
+    FULL_NAME_COL: 30,
+    COMPANY_COL: 30,
     "Company Name": 35,
-    "Position": 60,
-    "Website": 35,
-    "LinkedIn": 50,
-    "Linkedin ": 50,
-    "Email": 40,
+    POSITION_COL: 60,
+    WEBSITE_COL: 35,
+    LINKEDIN_COL: 50,
+    LINKEDIN_TYPO_COL: 50,
+    EMAIL_COL: 40,
 }
 
 
@@ -115,9 +124,24 @@ def load_table(path: str) -> pd.DataFrame:
 
 
 def filter_rows_by_keywords(df: pd.DataFrame, keywords: list[str]) -> pd.DataFrame:
-    """Keep rows where any keyword appears (case-insensitive substring) in any cell."""
-    kws = [str(k).strip().lower() for k in keywords if str(k).strip()]
-    if not kws:
+    """Filter rows by keywords.
+
+    Positive keywords keep matching rows.
+    Keywords prefixed with '-' exclude matching rows.
+    If only exclude keywords are provided, all rows start included.
+    """
+    include_kws: list[str] = []
+    exclude_kws: list[str] = []
+    for raw in keywords:
+        token = str(raw).strip().lower()
+        if not token:
+            continue
+        if token.startswith("-") and token[1:].strip():
+            exclude_kws.append(token[1:].strip())
+        else:
+            include_kws.append(token)
+
+    if not include_kws and not exclude_kws:
         return df
 
     def row_matches(row: pd.Series) -> bool:
@@ -126,7 +150,9 @@ def filter_rows_by_keywords(df: pd.DataFrame, keywords: list[str]) -> pd.DataFra
             if pd.notna(v):
                 blob_parts.append(str(v).lower())
         blob = " ".join(blob_parts)
-        return any(k in blob for k in kws)
+        include_ok = True if not include_kws else any(k in blob for k in include_kws)
+        exclude_hit = any(k in blob for k in exclude_kws)
+        return include_ok and not exclude_hit
 
     mask = df.apply(row_matches, axis=1)
     return df.loc[mask].copy()
@@ -136,6 +162,43 @@ def _maybe_keyword_filter(df: pd.DataFrame, keyword_filter: list[str] | None) ->
     if not keyword_filter:
         return df
     return filter_rows_by_keywords(df, keyword_filter)
+
+
+def _maybe_require_linkedin(df: pd.DataFrame, require_linkedin: bool) -> pd.DataFrame:
+    if not require_linkedin:
+        return df
+    if LINKEDIN_COL not in df.columns:
+        return df
+    linkedin = df[LINKEDIN_COL].fillna("").astype(str).str.strip()
+    return df.loc[linkedin.ne("")].copy()
+
+
+def _finalize_output_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Keep output columns in a stable order:
+    Full Name, Company, Website, Position, LinkedIn, Email, then remaining columns.
+    """
+    out = df.copy()
+    typo_renames: dict[str, str] = {}
+    if POSITION_COL not in out.columns and POSITION_TYPO_COL in out.columns:
+        typo_renames[POSITION_TYPO_COL] = POSITION_COL
+    if LINKEDIN_COL not in out.columns and LINKEDIN_TYPO_COL in out.columns:
+        typo_renames[LINKEDIN_TYPO_COL] = LINKEDIN_COL
+    if typo_renames:
+        out = out.rename(columns=typo_renames)
+
+    if FULL_NAME_COL in out.columns and NAME_COL in out.columns:
+        full_name = out[FULL_NAME_COL].fillna("").astype(str).str.strip()
+        name = out[NAME_COL].fillna("").astype(str).str.strip()
+        out[FULL_NAME_COL] = full_name.where(full_name.ne(""), name)
+        out = out.drop(columns=[NAME_COL])
+    elif FULL_NAME_COL not in out.columns and NAME_COL in out.columns:
+        out = out.rename(columns={NAME_COL: FULL_NAME_COL})
+
+    preferred = [FULL_NAME_COL, COMPANY_COL, WEBSITE_COL, POSITION_COL, LINKEDIN_COL, EMAIL_COL]
+    front = [c for c in preferred if c in out.columns]
+    rest = [c for c in out.columns if c not in front]
+    return out[front + rest]
 
 
 def dataframe_merge_company(people: pd.DataFrame, companies: pd.DataFrame) -> pd.DataFrame:
@@ -203,9 +266,12 @@ def run_format(
     output_path: str,
     table_name: str = "Data",
     keyword_filter: list[str] | None = None,
+    require_linkedin: bool = False,
 ) -> int:
     df = load_table(input_path)
     df = _maybe_keyword_filter(df, keyword_filter)
+    df = _maybe_require_linkedin(df, require_linkedin)
+    df = _finalize_output_columns(df)
     write_excel_table(df, output_path, table_name=table_name)
     return len(df)
 
@@ -216,12 +282,15 @@ def run_merge_company(
     output_path: str,
     table_name: str = "EnergyTech",
     keyword_filter: list[str] | None = None,
+    require_linkedin: bool = False,
 ) -> tuple[int, int]:
     """Merge people file with company→website file. Returns (row_count, websites_matched)."""
     people = load_table(people_path)
     companies = load_table(companies_path)
     out = dataframe_merge_company(people, companies)
     out = _maybe_keyword_filter(out, keyword_filter)
+    out = _maybe_require_linkedin(out, require_linkedin)
+    out = _finalize_output_columns(out)
     write_excel_table(out, output_path, table_name=table_name)
     matched = int(out["Website"].astype(str).str.strip().ne("").sum()) if "Website" in out.columns else 0
     return len(out), int(matched)
@@ -233,12 +302,15 @@ def run_merge_emails(
     output_path: str,
     table_name: str = "DCDWithEmails",
     keyword_filter: list[str] | None = None,
+    require_linkedin: bool = False,
 ) -> tuple[int, int]:
     """Merge emails into main table by LinkedIn. Returns (row_count, emails_matched)."""
     main_df = load_table(main_path)
     emails_df = load_table(emails_path)
     out = dataframe_merge_emails(main_df, emails_df)
     out = _maybe_keyword_filter(out, keyword_filter)
+    out = _maybe_require_linkedin(out, require_linkedin)
+    out = _finalize_output_columns(out)
     write_excel_table(out, output_path, table_name=table_name)
     matched = int(out["Email"].astype(str).str.strip().ne("").sum()) if "Email" in out.columns else 0
     return len(out), int(matched)
@@ -251,6 +323,7 @@ def run_merge_full_pipeline(
     output_path: str,
     table_name: str = "Merged",
     keyword_filter: list[str] | None = None,
+    require_linkedin: bool = False,
 ) -> tuple[int, int, int]:
     """
     Merge company websites onto base, then merge emails.
@@ -263,6 +336,8 @@ def run_merge_full_pipeline(
     merged = dataframe_merge_company(people, companies)
     merged = dataframe_merge_emails(merged, emails_df)
     merged = _maybe_keyword_filter(merged, keyword_filter)
+    merged = _maybe_require_linkedin(merged, require_linkedin)
+    merged = _finalize_output_columns(merged)
     web_n = (
         int(merged["Website"].astype(str).str.strip().ne("").sum()) if "Website" in merged.columns else 0
     )
