@@ -1,4 +1,5 @@
 import argparse
+import csv
 import os
 import re
 
@@ -314,6 +315,55 @@ def run_merge_emails(
     write_excel_table(out, output_path, table_name=table_name)
     matched = int(out["Email"].astype(str).str.strip().ne("").sum()) if "Email" in out.columns else 0
     return len(out), int(matched)
+
+
+def _read_csv_rows(path: str) -> list[list[str]]:
+    """Read CSV as list of rows, trying common encodings."""
+    last_err: OSError | UnicodeDecodeError | None = None
+    for enc in ("utf-8-sig", "utf-8", "cp1252", "latin1"):
+        try:
+            with open(path, "r", newline="", encoding=enc) as f:
+                return list(csv.reader(f))
+        except (UnicodeDecodeError, OSError) as e:
+            last_err = e
+    if last_err:
+        raise last_err
+    return []
+
+
+def split_csv_chunks(input_path: str, output_pattern: str, rows_per_file: int = 40) -> list[str]:
+    """Split a CSV into chunk files.
+
+    ``output_pattern`` must contain exactly one ``{}`` placeholder, replaced with the
+    1-based chunk index (e.g. ``C:/out/people_{}.csv`` → ``people_1.csv``, ``people_2.csv``, …).
+    """
+    if rows_per_file < 1:
+        raise ValueError("rows_per_file must be at least 1.")
+    if output_pattern.count("{}") != 1:
+        raise ValueError(
+            "Output pattern must contain exactly one '{}' placeholder for the chunk number "
+            "(example: C:\\\\data\\\\people_{}.csv)."
+        )
+
+    reader = _read_csv_rows(input_path)
+    if not reader:
+        raise ValueError("CSV is empty or could not be read.")
+    header = reader[0]
+    data = reader[1:]
+    num_chunks = (len(data) + rows_per_file - 1) // rows_per_file
+    created: list[str] = []
+    for i in range(num_chunks):
+        chunk = data[i * rows_per_file : (i + 1) * rows_per_file]
+        out_file = os.path.normpath(output_pattern.format(i + 1))
+        out_dir = os.path.dirname(out_file)
+        if out_dir and not os.path.isdir(out_dir):
+            os.makedirs(out_dir, exist_ok=True)
+        with open(out_file, "w", newline="", encoding="utf-8") as outfile:
+            writer = csv.writer(outfile)
+            writer.writerow(header)
+            writer.writerows(chunk)
+        created.append(out_file)
+    return created
 
 
 def run_merge_full_pipeline(

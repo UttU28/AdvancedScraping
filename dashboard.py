@@ -1,8 +1,8 @@
 """
-Dark-themed desktop UI for format / merge-company / merge-emails workflows.
+Dark-themed desktop UI: Merge workflows and CSV split chunks.
 Run: python dashboard.py
 
-Drag-and-drop (Windows): uses windnd; drop callbacks only enqueue paths — the main Tk
+Drag-and-drop (Windows): uses windnd; drop callbacks enqueue paths — the main Tk
 thread drains the queue and updates the UI (avoids GIL / PyEval_RestoreThread issues).
 """
 
@@ -28,24 +28,24 @@ from app import (
     run_merge_company,
     run_merge_emails,
     run_merge_full_pipeline,
+    split_csv_chunks,
 )
 
-CSV_EXT = ".csv"
-XLSX_EXT = ".xlsx"
-XLS_EXT = ".xls"
-
-FILE_TYPES = [
-    ("CSV or Excel", f"*{CSV_EXT} *{XLSX_EXT} *{XLS_EXT}"),
-    ("CSV", f"*{CSV_EXT}"),
-    ("Excel", f"*{XLSX_EXT} *{XLS_EXT}"),
+csvExt = ".csv"
+xlsxExt = ".xlsx"
+xlsExt = ".xls"
+mergeFileTypes = [
+    ("CSV or Excel", f"*{csvExt} *{xlsxExt} *{xlsExt}"),
+    ("CSV", f"*{csvExt}"),
+    ("Excel", f"*{xlsxExt} *{xlsExt}"),
     ("All files", "*.*"),
 ]
-SUPPORTED_INPUT_EXTS = (CSV_EXT, XLSX_EXT, XLS_EXT)
-OUTPUT_EXT = XLSX_EXT
+splitFileTypes = [("CSV", f"*{csvExt}"), ("All files", "*.*")]
+supportedMergeInputExts = (csvExt, xlsxExt, xlsExt)
+splitInputExts = (csvExt,)
+mergeOutputExt = xlsxExt
 
-# Canonical base columns used when multiple base files are combined.
-# Aliases are normalized with lowercase + alnum only.
-BASE_COLUMN_ALIASES = {
+baseColumnAliases = {
     "name": "Name",
     "fullname": "Name",
     "personname": "Name",
@@ -67,15 +67,13 @@ BASE_COLUMN_ALIASES = {
     "companywebsite": "Website",
 }
 
-ACCENT = "#3b82f6"
-WIN_BG = "#1e1e26"
-WIN_BORDER = "#3d3d4d"
-BG = "#16161c"
-MUTED = "#8b8b9a"
+accentColor = "#3b82f6"
+windowSurface = "#1e1e26"
+windowBorder = "#3d3d4d"
+appBackground = "#16161c"
+mutedText = "#8b8b9a"
 
-# Default export-filter keywords — comma-separated, one line (phrases may contain spaces, not commas).
-# Prefix with '-' to exclude rows containing those terms.
-_DEFAULT_FILTER_PARTS = (
+defaultFilterParts = (
     "-University",
     "-College",
     "-School",
@@ -122,153 +120,254 @@ _DEFAULT_FILTER_PARTS = (
     "-Deputy",
     "-Engineer",
 )
-DEFAULT_EXPORT_FILTER_KEYWORDS = ", ".join(_DEFAULT_FILTER_PARTS)
+defaultExportFilterKeywords = ", ".join(defaultFilterParts)
 
 Action = Literal["none", "format", "company", "emails", "full"]
 
 
-class MergeDashboard(ctk.CTk):
+class StudioApp(ctk.CTk):
     def __init__(self) -> None:
         super().__init__()
-        self.title("Merge Studio")
-        self.geometry("1000x720")
-        self.minsize(900, 660)
-        self.configure(fg_color=BG)
+        self.title("Merge and Split")
+        self.geometry("1100x780")
+        self.minsize(1000, 700)
+        self.configure(fg_color=appBackground)
 
-        self._paths: dict[str, str | None] = {"base": None, "company": None, "emails": None}
-        self._base_paths: list[str] = []
-        self._output_dir: str = os.getcwd()
-        self._output_name = ctk.StringVar(value="")  # filename stem only (no .xlsx)
-        self._filter_export = ctk.BooleanVar(value=False)
-        self._require_linkedin = ctk.BooleanVar(value=False)
-        self._filter_keywords = ctk.StringVar(value="")
-        self._action: Action = "none"
-        self._drop_queue: queue.Queue[tuple[str, list[str]]] = queue.Queue()
-        self._last_success_output: str | None = None
+        self.paths: dict[str, str | None] = {"base": None, "company": None, "emails": None}
+        self.basePaths: list[str] = []
+        self.outputDir = os.getcwd()
+        self.outputStem = ctk.StringVar(value="")
+        self.filterExport = ctk.BooleanVar(value=False)
+        self.requireLinkedin = ctk.BooleanVar(value=False)
+        self.filterKeywords = ctk.StringVar(value="")
+        self.action: Action = "none"
+        self.dropQueue: queue.Queue[tuple[str, list[str]]] = queue.Queue()
+        self.lastSuccessOutput: str | None = None
 
-        self._build()
-        self._refresh_ui()
-        self.after(50, self._poll_drop_queue)
-        self._setup_drag_drop()
+        self.splitInputPath: str | None = None
+        self.splitOutputPattern = ctk.StringVar(value="")
 
-    def _build(self) -> None:
+        self.buildUi()
+        self.after(50, self.pollDropQueue)
+        self.setupDragDrop()
+
+    def buildUi(self) -> None:
         top = ctk.CTkFrame(self, fg_color="transparent")
-        top.pack(fill="x", padx=24, pady=(20, 10))
+        top.pack(fill="x", padx=24, pady=(20, 6))
 
         ctk.CTkLabel(
             top,
-            text="Merge Studio",
+            text="Merge and Split",
             font=ctk.CTkFont(family="Segoe UI", size=24, weight="bold"),
             text_color="#f4f4f5",
         ).pack(anchor="w")
         ctk.CTkLabel(
             top,
-            text="Drag a file onto a panel or use Choose file… · one action button",
+            text="Drag files onto a card or use Choose… · One action button runs merge (if Base is set) or Split CSV · Clear resets all cards",
             font=ctk.CTkFont(size=12),
-            text_color=MUTED,
+            text_color=mutedText,
         ).pack(anchor="w", pady=(2, 0))
 
-        slots = ctk.CTkFrame(self, fg_color="transparent")
-        slots.pack(fill="x", padx=20, pady=(8, 8))
+        mainFrame = ctk.CTkFrame(self, fg_color="transparent")
+        mainFrame.pack(fill="both", expand=True, padx=16, pady=(4, 8))
+        self.buildMergeTab(mainFrame)
+
+        self.logBox = ctk.CTkTextbox(
+            self,
+            height=160,
+            font=ctk.CTkFont(family="Consolas", size=11),
+            fg_color="#0f0f14",
+            border_color="#2d2d3a",
+            text_color="#a1a1aa",
+        )
+        self.logBox.pack(fill="both", expand=False, padx=24, pady=(0, 16))
+
+    def buildMergeTab(self, parent: ctk.CTkFrame) -> None:
+        slots = ctk.CTkFrame(parent, fg_color="transparent")
+        slots.pack(fill="x", padx=4, pady=(8, 8))
         slots.grid_columnconfigure(0, weight=1, uniform="slot")
         slots.grid_columnconfigure(1, weight=1, uniform="slot")
         slots.grid_columnconfigure(2, weight=1, uniform="slot")
+        slots.grid_columnconfigure(3, weight=1, uniform="slot")
 
-        self._slot_base = self._small_window(
+        cardWrap = 200
+        self.smallWindow(
             slots,
             col=0,
             key="base",
             title="Base",
             hint="Main table(s) · CSV / Excel · drop or choose (multi-select)",
+            wrapLength=cardWrap,
         )
-        self._slot_company = self._small_window(
-            slots, col=1, key="company", title="Companies", hint="Company + website · drop or choose"
+        self.smallWindow(
+            slots,
+            col=1,
+            key="company",
+            title="Companies",
+            hint="Company + website · drop or choose",
+            wrapLength=cardWrap,
         )
-        self._slot_emails = self._small_window(
-            slots, col=2, key="emails", title="Emails", hint="LinkedIn + email / Mails · drop or choose"
+        self.smallWindow(
+            slots,
+            col=2,
+            key="emails",
+            title="Emails",
+            hint="LinkedIn + email / Mails · drop or choose",
+            wrapLength=cardWrap,
+        )
+        self.smallWindow(
+            slots,
+            col=3,
+            key="split",
+            title="Split",
+            hint="CSV to chunk · drop or choose (40 rows per file)",
+            wrapLength=cardWrap,
         )
 
-        body = ctk.CTkFrame(self, fg_color="transparent")
-        body.pack(fill="both", expand=True, padx=24, pady=(0, 16))
+        body = ctk.CTkFrame(parent, fg_color="transparent")
+        body.pack(fill="both", expand=True, padx=4, pady=(0, 8))
 
-        out_fr = ctk.CTkFrame(
-            body, fg_color=WIN_BG, corner_radius=10, border_width=1, border_color=WIN_BORDER
+        outFr = ctk.CTkFrame(
+            body, fg_color=windowSurface, corner_radius=10, border_width=1, border_color=windowBorder
         )
-        out_fr.pack(fill="x", pady=(0, 10))
+        outFr.pack(fill="x", pady=(0, 10))
         ctk.CTkLabel(
-            out_fr,
-            text="Output (.xlsx)",
+            outFr,
+            text="Output",
             font=ctk.CTkFont(size=12, weight="bold"),
             text_color="#e4e4e7",
         ).pack(anchor="w", padx=12, pady=(10, 2))
-        self._output_dir_label = ctk.CTkLabel(
-            out_fr,
-            text=self._format_dir_label(self._output_dir),
+        self.outputHelperLabel = ctk.CTkLabel(
+            outFr,
+            text="Choose a Base file for Excel output and/or a CSV in Split for chunk filenames.",
+            font=ctk.CTkFont(size=11),
+            text_color=mutedText,
+            wraplength=1000,
+            justify="left",
+        )
+        self.mergeOutputBlock = ctk.CTkFrame(outFr, fg_color="transparent")
+        ctk.CTkLabel(
+            self.mergeOutputBlock,
+            text="Merge → Excel (.xlsx)",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color="#d4d4d8",
+        ).pack(anchor="w", padx=12, pady=(4, 2))
+        self.mergeOutputDirLabel = ctk.CTkLabel(
+            self.mergeOutputBlock,
+            text=self.formatDirLabel(self.outputDir),
             font=ctk.CTkFont(size=9),
             text_color="#5c5c6a",
             anchor="w",
-            wraplength=860,
+            wraplength=1000,
             justify="left",
         )
-        self._output_dir_label.pack(anchor="w", padx=12, pady=(0, 6))
-        row = ctk.CTkFrame(out_fr, fg_color="transparent")
-        row.pack(fill="x", padx=8, pady=(0, 10))
-        self._entry_out = ctk.CTkEntry(
-            row,
-            textvariable=self._output_name,
-            placeholder_text="File name",
+        self.mergeOutputDirLabel.pack(anchor="w", padx=12, pady=(0, 6))
+        mergeRow = ctk.CTkFrame(self.mergeOutputBlock, fg_color="transparent")
+        mergeRow.pack(fill="x", padx=8, pady=(0, 8))
+        self.mergeOutputEntry = ctk.CTkEntry(
+            mergeRow,
+            textvariable=self.outputStem,
+            placeholder_text="File name (no extension)",
             height=36,
             font=ctk.CTkFont(size=12),
             border_color="#3f3f4e",
             fg_color="#14141a",
         )
-        self._entry_out.pack(side="left", fill="x", expand=True, padx=(4, 8))
+        self.mergeOutputEntry.pack(side="left", fill="x", expand=True, padx=(4, 8))
         ctk.CTkButton(
-            row,
+            mergeRow,
             text="Browse…",
             width=90,
             height=36,
             fg_color="#3f3f50",
             hover_color="#52525e",
-            command=self._browse_output,
+            command=self.browseMergeOutput,
         ).pack(side="right")
 
-        filt_fr = ctk.CTkFrame(
-            body, fg_color=WIN_BG, corner_radius=10, border_width=1, border_color=WIN_BORDER
-        )
-        filt_fr.pack(fill="x", pady=(0, 10))
-        filt_header = ctk.CTkFrame(filt_fr, fg_color="transparent")
-        filt_header.pack(fill="x", padx=12, pady=(10, 2))
-        self._chk_filter = ctk.CTkCheckBox(
-            filt_header,
-            text="Filter rows by keywords",
-            variable=self._filter_export,
-            font=ctk.CTkFont(size=12),
-            command=self._on_filter_toggle,
-            fg_color=ACCENT,
-            hover_color="#2563eb",
-        )
-        self._chk_filter.pack(side="right", anchor="e")
-        self._chk_require_linkedin = ctk.CTkCheckBox(
-            filt_header,
-            text="Drop rows without LinkedIn",
-            variable=self._require_linkedin,
-            font=ctk.CTkFont(size=12),
-            fg_color=ACCENT,
-            hover_color="#2563eb",
-        )
-        self._chk_require_linkedin.pack(side="right", anchor="e", padx=(0, 14))
+        self.splitOutputBlock = ctk.CTkFrame(outFr, fg_color="transparent")
         ctk.CTkLabel(
-            filt_header,
+            self.splitOutputBlock,
+            text="Split → CSV chunks (40 rows each)",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color="#d4d4d8",
+        ).pack(anchor="w", padx=12, pady=(4, 2))
+        ctk.CTkLabel(
+            self.splitOutputBlock,
+            text='Pattern must include one {} (e.g. …\\people_{}.csv → people_1.csv, people_2.csv, …)',
+            font=ctk.CTkFont(size=10),
+            text_color=mutedText,
+            wraplength=1000,
+            justify="left",
+        ).pack(anchor="w", padx=12, pady=(0, 4))
+        self.splitPatternDirLabel = ctk.CTkLabel(
+            self.splitOutputBlock,
+            text="",
+            font=ctk.CTkFont(size=9),
+            text_color="#5c5c6a",
+            anchor="w",
+            wraplength=1000,
+            justify="left",
+        )
+        self.splitPatternDirLabel.pack(anchor="w", padx=12, pady=(0, 4))
+        splitProw = ctk.CTkFrame(self.splitOutputBlock, fg_color="transparent")
+        splitProw.pack(fill="x", padx=8, pady=(0, 10))
+        self.splitPatternEntry = ctk.CTkEntry(
+            splitProw,
+            textvariable=self.splitOutputPattern,
+            height=36,
+            font=ctk.CTkFont(size=12),
+            border_color="#3f3f4e",
+            fg_color="#14141a",
+            text_color="#e4e4e7",
+        )
+        self.splitPatternEntry.pack(side="left", fill="x", expand=True, padx=(4, 8))
+        self.splitPatternEntry.bind("<KeyRelease>", lambda _e: self.updateSplitPatternDirLabel())
+        ctk.CTkButton(
+            splitProw,
+            text="Browse folder…",
+            width=120,
+            height=36,
+            fg_color="#3f3f50",
+            hover_color="#52525e",
+            command=self.browseSplitOutputFolder,
+        ).pack(side="right")
+
+        filtFr = ctk.CTkFrame(
+            body, fg_color=windowSurface, corner_radius=10, border_width=1, border_color=windowBorder
+        )
+        filtFr.pack(fill="x", pady=(0, 10))
+        filtHeader = ctk.CTkFrame(filtFr, fg_color="transparent")
+        filtHeader.pack(fill="x", padx=12, pady=(10, 2))
+        self.mergeChkFilter = ctk.CTkCheckBox(
+            filtHeader,
+            text="Filter rows by keywords",
+            variable=self.filterExport,
+            font=ctk.CTkFont(size=12),
+            command=self.onFilterToggle,
+            fg_color=accentColor,
+            hover_color="#2563eb",
+        )
+        self.mergeChkFilter.pack(side="right", anchor="e")
+        self.mergeChkRequireLinkedin = ctk.CTkCheckBox(
+            filtHeader,
+            text="Drop rows without LinkedIn",
+            variable=self.requireLinkedin,
+            font=ctk.CTkFont(size=12),
+            fg_color=accentColor,
+            hover_color="#2563eb",
+        )
+        self.mergeChkRequireLinkedin.pack(side="right", anchor="e", padx=(0, 14))
+        ctk.CTkLabel(
+            filtHeader,
             text="Export filter (optional)",
             font=ctk.CTkFont(size=12, weight="bold"),
             text_color="#e4e4e7",
         ).pack(side="left", anchor="w")
-        filter_entry_row = ctk.CTkFrame(filt_fr, fg_color="transparent")
-        filter_entry_row.pack(fill="x", padx=12, pady=(0, 10))
-        self._filter_entry = ctk.CTkEntry(
-            filter_entry_row,
-            textvariable=self._filter_keywords,
+        filterEntryRow = ctk.CTkFrame(filtFr, fg_color="transparent")
+        filterEntryRow.pack(fill="x", padx=12, pady=(0, 10))
+        self.mergeFilterEntry = ctk.CTkEntry(
+            filterEntryRow,
+            textvariable=self.filterKeywords,
             height=32,
             font=ctk.CTkFont(size=11),
             border_color="#3f3f4e",
@@ -277,59 +376,59 @@ class MergeDashboard(ctk.CTk):
             placeholder_text="Use keywords, or -keyword to exclude rows",
             state="disabled",
         )
-        self._filter_entry.pack(side="top", fill="x")
-        self._filter_hscroll = ctk.CTkScrollbar(
-            filter_entry_row,
+        self.mergeFilterEntry.pack(side="top", fill="x")
+        self.mergeFilterHscroll = ctk.CTkScrollbar(
+            filterEntryRow,
             orientation="horizontal",
             height=12,
             fg_color="#2d2d3a",
             button_color="#4b4b5a",
             button_hover_color="#5c5c6a",
-            command=lambda *a: self._filter_entry._entry.xview(*a),
+            command=lambda *a: self.mergeFilterEntry._entry.xview(*a),
         )
-        self._filter_entry._entry.configure(xscrollcommand=self._filter_hscroll.set)
-        self._filter_hscroll.pack(side="top", fill="x", pady=(4, 0))
+        self.mergeFilterEntry._entry.configure(xscrollcommand=self.mergeFilterHscroll.set)
+        self.mergeFilterHscroll.pack(side="top", fill="x", pady=(4, 0))
 
-        def _filter_entry_update_hscroll(_event: object | None = None) -> None:
+        def filterEntryUpdateHscroll(_event: object | None = None) -> None:
             try:
-                e = self._filter_entry._entry
+                e = self.mergeFilterEntry._entry
                 e.update_idletasks()
                 lo, hi = e.xview()
-                self._filter_hscroll.set(lo, hi)
+                self.mergeFilterHscroll.set(lo, hi)
             except (tk.TclError, ValueError):
                 pass
 
-        self._filter_entry._entry.bind("<KeyRelease>", _filter_entry_update_hscroll)
-        self._filter_entry._entry.bind("<ButtonRelease-1>", _filter_entry_update_hscroll)
+        self.mergeFilterEntry._entry.bind("<KeyRelease>", filterEntryUpdateHscroll)
+        self.mergeFilterEntry._entry.bind("<ButtonRelease-1>", filterEntryUpdateHscroll)
 
-        self._set_filter_text_content(DEFAULT_EXPORT_FILTER_KEYWORDS)
-        self._filter_entry.configure(state="disabled")
-        self._sync_filter_entry_scroll()
+        self.setFilterTextContent(defaultExportFilterKeywords)
+        self.mergeFilterEntry.configure(state="disabled")
+        self.syncFilterEntryScroll()
 
-        self._hint = ctk.CTkLabel(
+        self.mergeHint = ctk.CTkLabel(
             body,
             text="",
             font=ctk.CTkFont(size=13),
-            text_color=MUTED,
+            text_color=mutedText,
             wraplength=900,
             justify="center",
         )
-        self._hint.pack(anchor="center", pady=(6, 10))
+        self.mergeHint.pack(anchor="center", pady=(6, 10))
 
-        btn_row = ctk.CTkFrame(body, fg_color="transparent")
-        btn_row.pack(fill="x", pady=(0, 10))
-        self._action_btn = ctk.CTkButton(
-            btn_row,
+        btnRow = ctk.CTkFrame(body, fg_color="transparent")
+        btnRow.pack(fill="x", pady=(0, 6))
+        self.mergeActionBtn = ctk.CTkButton(
+            btnRow,
             text="",
             height=44,
             font=ctk.CTkFont(size=15, weight="bold"),
-            fg_color=ACCENT,
+            fg_color=accentColor,
             hover_color="#2563eb",
-            command=self._on_action_click,
+            command=self.onPrimaryActionClick,
         )
-        self._action_btn.pack(side="left", fill="x", expand=True, padx=(0, 8))
-        self._btn_open_location = ctk.CTkButton(
-            btn_row,
+        self.mergeActionBtn.pack(side="left", fill="x", expand=True, padx=(0, 8))
+        self.mergeOpenBtn = ctk.CTkButton(
+            btnRow,
             text="Open file location",
             width=158,
             height=44,
@@ -337,21 +436,38 @@ class MergeDashboard(ctk.CTk):
             state="disabled",
             fg_color="#374151",
             hover_color="#4b5563",
-            command=self._open_file_location,
+            command=self.openFileLocation,
         )
-        self._btn_open_location.pack(side="left")
-
-        self._log = ctk.CTkTextbox(
-            body,
-            height=180,
-            font=ctk.CTkFont(family="Consolas", size=11),
-            fg_color="#0f0f14",
-            border_color="#2d2d3a",
-            text_color="#a1a1aa",
+        self.mergeOpenBtn.pack(side="left", padx=(0, 8))
+        self.clearSelectionsBtn = ctk.CTkButton(
+            btnRow,
+            text="Clear",
+            width=88,
+            height=44,
+            font=ctk.CTkFont(size=13, weight="bold"),
+            fg_color="#4b5563",
+            hover_color="#6b7280",
+            command=self.clearAllFileSelections,
         )
-        self._log.pack(fill="both", expand=True)
+        self.clearSelectionsBtn.pack(side="left")
 
-    def _small_window(
+        self.updateOutputSections()
+        self.refreshMergeUi()
+
+    def updateOutputSections(self) -> None:
+        hasBase = bool(self.paths.get("base"))
+        hasSplit = bool(self.splitInputPath and os.path.isfile(self.splitInputPath))
+        self.outputHelperLabel.pack_forget()
+        self.mergeOutputBlock.pack_forget()
+        self.splitOutputBlock.pack_forget()
+        if not hasBase and not hasSplit:
+            self.outputHelperLabel.pack(anchor="w", padx=12, pady=(0, 10))
+        if hasBase:
+            self.mergeOutputBlock.pack(fill="x", padx=4, pady=(0, 6))
+        if hasSplit:
+            self.splitOutputBlock.pack(fill="x", padx=4, pady=(0, 10))
+
+    def smallWindow(
         self,
         parent: ctk.CTkFrame,
         *,
@@ -359,16 +475,15 @@ class MergeDashboard(ctk.CTk):
         key: str,
         title: str,
         hint: str,
+        wrapLength: int = 280,
     ) -> ctk.CTkFrame:
-        """Compact bordered panel (small window look)."""
         win = ctk.CTkFrame(
             parent,
-            fg_color=WIN_BG,
+            fg_color=windowSurface,
             corner_radius=10,
             border_width=1,
-            border_color=WIN_BORDER,
+            border_color=windowBorder,
         )
-        # sticky=new: stretch horizontally but not vertically — avoids tall empty gaps inside cards
         win.grid(row=0, column=col, padx=6, sticky="new")
 
         ctk.CTkLabel(
@@ -381,36 +496,47 @@ class MergeDashboard(ctk.CTk):
             win,
             text=hint,
             font=ctk.CTkFont(size=10),
-            text_color=MUTED,
+            text_color=mutedText,
             justify="left",
-            wraplength=280,
+            wraplength=wrapLength,
         ).pack(anchor="w", padx=10, pady=(2, 4))
 
-        path_var = ctk.StringVar(value="— none —")
+        pathVar = ctk.StringVar(value="— none —")
         ctk.CTkLabel(
             win,
-            textvariable=path_var,
+            textvariable=pathVar,
             font=ctk.CTkFont(size=10),
             text_color="#a1a1aa",
             anchor="w",
-            wraplength=280,
+            wraplength=wrapLength,
             justify="left",
             height=26,
         ).pack(fill="x", padx=10, pady=(0, 6))
 
         def browse() -> None:
             if key == "base":
-                picks = list(filedialog.askopenfilenames(filetypes=FILE_TYPES))
+                picks = list(filedialog.askopenfilenames(filetypes=mergeFileTypes))
                 if picks:
-                    self._set_base_paths(picks)
+                    self.setBasePaths(picks)
                 return
-            p = filedialog.askopenfilename(filetypes=FILE_TYPES)
+            if key == "split":
+                p = filedialog.askopenfilename(filetypes=splitFileTypes)
+                if p:
+                    self.setSplitInputPath(p)
+                return
+            p = filedialog.askopenfilename(filetypes=mergeFileTypes)
             if p:
-                self._set_slot_path(key, p)
+                self.setSlotPath(key, p)
 
+        if key == "base":
+            chooseLabel = "Choose file(s)…"
+        elif key == "split":
+            chooseLabel = "Choose CSV…"
+        else:
+            chooseLabel = "Choose file…"
         ctk.CTkButton(
             win,
-            text="Choose file(s)…" if key == "base" else "Choose file…",
+            text=chooseLabel,
             height=28,
             font=ctk.CTkFont(size=11),
             fg_color="#3f3f50",
@@ -418,50 +544,102 @@ class MergeDashboard(ctk.CTk):
             command=browse,
         ).pack(fill="x", padx=10, pady=(0, 8))
 
-        setattr(self, f"_path_label_{key}", path_var)
-        setattr(self, f"_card_{key}", win)
+        setattr(self, f"pathLabel{key.title()}", pathVar)
+        setattr(self, f"mergeCard{key.title()}", win)
         return win
 
-    def _set_base_paths(self, paths: list[str]) -> None:
-        clean_paths: list[str] = []
+    def setSplitInputPath(self, path: str) -> None:
+        path = os.path.normpath(path)
+        if not os.path.isfile(path) or os.path.splitext(path)[1].lower() != csvExt:
+            return
+        self.splitInputPath = path
+        var = getattr(self, "pathLabelSplit", None)
+        if var:
+            var.set(self.shortPath(path, 34))
+        directory = os.path.dirname(os.path.abspath(path))
+        stem = os.path.splitext(os.path.basename(path))[0]
+        pattern = os.path.join(directory, f"{stem}_{{}}.csv")
+        self.splitOutputPattern.set(pattern)
+        self.updateSplitPatternDirLabel()
+        self.refreshMergeUi()
+
+    def updateSplitPatternDirLabel(self) -> None:
+        raw = self.splitOutputPattern.get().strip()
+        if not raw:
+            self.splitPatternDirLabel.configure(text="")
+            return
+        directory = os.path.dirname(os.path.normpath(raw.replace("{}", "0")))
+        if directory:
+            self.splitPatternDirLabel.configure(text=self.formatDirLabel(directory))
+        else:
+            self.splitPatternDirLabel.configure(text="Folder: (same as pattern path)")
+
+    def primaryRunKind(self) -> str | None:
+        if self.paths.get("base"):
+            return "merge"
+        if self.splitInputPath and os.path.isfile(self.splitInputPath):
+            return "split"
+        return None
+
+    def browseSplitOutputFolder(self) -> None:
+        init = self.splitInputPath
+        initialDir = os.path.dirname(os.path.abspath(init)) if init else self.outputDir
+        if not initialDir or not os.path.isdir(initialDir):
+            initialDir = os.getcwd()
+        folder = filedialog.askdirectory(initialdir=initialDir)
+        if not folder:
+            return
+        if init:
+            stem = os.path.splitext(os.path.basename(init))[0]
+        else:
+            rawPat = self.splitOutputPattern.get().strip()
+            stem = os.path.splitext(os.path.basename(rawPat))[0] if rawPat else "output"
+            stem = stem.replace("{}", "").strip("_").strip() or "output"
+        pattern = os.path.join(os.path.normpath(folder), f"{stem}_{{}}.csv")
+        self.splitOutputPattern.set(pattern)
+        self.updateSplitPatternDirLabel()
+        self.refreshMergeUi()
+
+    def setBasePaths(self, paths: list[str]) -> None:
+        cleanPaths: list[str] = []
         seen: set[str] = set()
         for raw in paths:
             p = os.path.normpath(str(raw))
             if not p or not os.path.isfile(p):
                 continue
             ext = os.path.splitext(p)[1].lower()
-            if ext not in SUPPORTED_INPUT_EXTS:
+            if ext not in supportedMergeInputExts:
                 continue
             uniq = os.path.normcase(os.path.abspath(p))
             if uniq in seen:
                 continue
             seen.add(uniq)
-            clean_paths.append(p)
+            cleanPaths.append(p)
 
-        self._base_paths = clean_paths
-        self._paths["base"] = clean_paths[0] if clean_paths else None
-        var = getattr(self, "_path_label_base", None)
+        self.basePaths = cleanPaths
+        self.paths["base"] = cleanPaths[0] if cleanPaths else None
+        var = getattr(self, "pathLabelBase", None)
         if var:
-            if not clean_paths:
+            if not cleanPaths:
                 var.set("— none —")
-            elif len(clean_paths) == 1:
-                var.set(self._short_path(clean_paths[0], 34))
+            elif len(cleanPaths) == 1:
+                var.set(self.shortPath(cleanPaths[0], 34))
             else:
-                first = self._short_path(clean_paths[0], 24)
-                var.set(f"{len(clean_paths)} files selected · first: {first}")
-        self._on_paths_changed()
+                first = self.shortPath(cleanPaths[0], 24)
+                var.set(f"{len(cleanPaths)} files selected · first: {first}")
+        self.onPathsChanged()
 
-    def _set_slot_path(self, key: str, path: str) -> None:
+    def setSlotPath(self, key: str, path: str) -> None:
         if key == "base":
-            self._set_base_paths([path])
+            self.setBasePaths([path])
             return
-        self._paths[key] = path
-        var = getattr(self, f"_path_label_{key}", None)
+        self.paths[key] = path
+        var = getattr(self, f"pathLabel{key.title()}", None)
         if var:
-            var.set(self._short_path(path, 34))
-        self._on_paths_changed()
+            var.set(self.shortPath(path, 34))
+        self.onPathsChanged()
 
-    def _decode_drop_path(self, raw: object) -> str:
+    def decodeDropPath(self, raw: object) -> str:
         if isinstance(raw, bytes):
             for enc in ("utf-8", "mbcs"):
                 try:
@@ -471,65 +649,70 @@ class MergeDashboard(ctk.CTk):
             return raw.decode("utf-8", errors="replace").strip("\0").strip()
         return str(raw).strip("\0").strip()
 
-    def _poll_drop_queue(self) -> None:
+    def pollDropQueue(self) -> None:
         try:
             while True:
-                key, paths = self._drop_queue.get_nowait()
+                key, paths = self.dropQueue.get_nowait()
                 valid: list[str] = []
                 for p in paths:
                     path = os.path.normpath(p)
                     if not path or not os.path.isfile(path):
                         continue
                     ext = os.path.splitext(path)[1].lower()
-                    if ext not in SUPPORTED_INPUT_EXTS:
-                        continue
-                    valid.append(path)
+                    if key == "split":
+                        if ext in splitInputExts:
+                            valid.append(path)
+                    else:
+                        if ext in supportedMergeInputExts:
+                            valid.append(path)
                 if not valid:
                     continue
-                if key == "base":
-                    self._set_base_paths(valid)
+                if key == "split":
+                    self.setSplitInputPath(valid[0])
+                elif key == "base":
+                    self.setBasePaths(valid)
                 else:
-                    self._set_slot_path(key, valid[0])
+                    self.setSlotPath(key, valid[0])
         except queue.Empty:
             pass
-        self.after(80, self._poll_drop_queue)
+        self.after(80, self.pollDropQueue)
 
-    def _setup_drag_drop(self) -> None:
+    def setupDragDrop(self) -> None:
         try:
             import windnd  # type: ignore
         except ImportError:
             return
 
-        def make_handler(key: str):
-            def on_drop(files) -> None:
+        def makeHandler(key: str):
+            def onDrop(files) -> None:
                 if not files:
                     return
                 try:
-                    dropped = [self._decode_drop_path(raw) for raw in files]
+                    dropped = [self.decodeDropPath(raw) for raw in files]
                     if dropped:
-                        self._drop_queue.put_nowait((key, dropped))
+                        self.dropQueue.put_nowait((key, dropped))
                 except Exception:
                     pass
 
-            return on_drop
+            return onDrop
 
-        for key in ("base", "company", "emails"):
-            card = getattr(self, f"_card_{key}", None)
+        for key in ("base", "company", "emails", "split"):
+            card = getattr(self, f"mergeCard{key.title()}", None)
             if card is None:
                 continue
             try:
-                windnd.hook_dropfiles(card, func=make_handler(key))
+                windnd.hook_dropfiles(card, func=makeHandler(key))
             except Exception:
                 pass
 
-    def _short_path(self, p: str, max_len: int) -> str:
+    def shortPath(self, p: str, maxLen: int) -> str:
         p = os.path.normpath(p)
         name = os.path.basename(p)
-        if len(name) <= max_len:
+        if len(name) <= maxLen:
             return name
-        return name[: max_len - 1] + "…"
+        return name[: maxLen - 1] + "…"
 
-    def _format_dir_label(self, directory: str) -> str:
+    def formatDirLabel(self, directory: str) -> str:
         d = os.path.normpath(directory or os.getcwd())
         prefix = "Folder: "
         cap = 90
@@ -538,90 +721,89 @@ class MergeDashboard(ctk.CTk):
             rest = "…" + rest[-(cap - len(prefix) - 1) :]
         return prefix + rest
 
-    def _update_dir_label(self) -> None:
-        self._output_dir_label.configure(text=self._format_dir_label(self._output_dir))
+    def updateMergeDirLabel(self) -> None:
+        self.mergeOutputDirLabel.configure(text=self.formatDirLabel(self.outputDir))
 
-    def _set_output_from_full_path(self, full_path: str) -> None:
-        full_path = os.path.normpath(os.path.abspath(full_path))
-        self._output_dir = os.path.dirname(full_path) or os.getcwd()
-        stem = os.path.splitext(os.path.basename(full_path))[0]
-        self._output_name.set(stem)
-        self._update_dir_label()
+    def setOutputFromFullPath(self, fullPath: str) -> None:
+        fullPath = os.path.normpath(os.path.abspath(fullPath))
+        self.outputDir = os.path.dirname(fullPath) or os.getcwd()
+        stem = os.path.splitext(os.path.basename(fullPath))[0]
+        self.outputStem.set(stem)
+        self.updateMergeDirLabel()
 
-    def _on_paths_changed(self) -> None:
-        self._suggest_output()
-        self._refresh_ui()
+    def onPathsChanged(self) -> None:
+        self.suggestMergeOutput()
+        self.refreshMergeUi()
 
-    def _default_output_xlsx(self, base_path: str) -> str:
-        """Same folder + stem as base, extension .xlsx. If same as input, use stem_N.xlsx."""
-        directory = os.path.dirname(os.path.abspath(base_path)) or os.getcwd()
-        stem = os.path.splitext(os.path.basename(base_path))[0]
-        candidate = os.path.join(directory, f"{stem}{OUTPUT_EXT}")
+    def defaultMergeOutputXlsx(self, basePath: str) -> str:
+        directory = os.path.dirname(os.path.abspath(basePath)) or os.getcwd()
+        stem = os.path.splitext(os.path.basename(basePath))[0]
+        candidate = os.path.join(directory, f"{stem}{mergeOutputExt}")
 
-        def same_file(a: str, b: str) -> bool:
+        def sameFile(a: str, b: str) -> bool:
             return os.path.normcase(os.path.abspath(a)) == os.path.normcase(os.path.abspath(b))
 
-        if not same_file(candidate, base_path):
+        if not sameFile(candidate, basePath):
             return candidate
 
         n = 1
         while True:
-            alt = os.path.join(directory, f"{stem}_{n}{OUTPUT_EXT}")
-            if same_file(alt, base_path):
+            alt = os.path.join(directory, f"{stem}_{n}{mergeOutputExt}")
+            if sameFile(alt, basePath):
                 n += 1
                 continue
             if not os.path.isfile(alt):
                 return alt
             n += 1
 
-    def _suggest_output(self) -> None:
-        base = self._paths.get("base")
+    def suggestMergeOutput(self) -> None:
+        base = self.paths.get("base")
         if not base:
             return
-        if self._output_name.get().strip():
+        if self.outputStem.get().strip():
             return
-        suggested = self._default_output_xlsx(base)
-        self._set_output_from_full_path(suggested)
+        suggested = self.defaultMergeOutputXlsx(base)
+        self.setOutputFromFullPath(suggested)
 
-    def _browse_output(self) -> None:
-        b = self._paths.get("base")
-        initial_dir = self._output_dir
-        if not initial_dir or not os.path.isdir(initial_dir):
-            initial_dir = os.path.dirname(os.path.abspath(b)) if b else os.getcwd()
-        initial_name = self._output_name.get().strip() or "output"
+    def browseMergeOutput(self) -> None:
+        b = self.paths.get("base")
+        initialDir = self.outputDir
+        if not initialDir or not os.path.isdir(initialDir):
+            initialDir = os.path.dirname(os.path.abspath(b)) if b else os.getcwd()
+        initialName = self.outputStem.get().strip() or "output"
         p = filedialog.asksaveasfilename(
-            defaultextension=OUTPUT_EXT,
-            filetypes=[("Excel", f"*{OUTPUT_EXT}")],
-            initialdir=initial_dir if os.path.isdir(initial_dir) else None,
-            initialfile=f"{initial_name}{OUTPUT_EXT}",
+            defaultextension=mergeOutputExt,
+            filetypes=[("Excel", f"*{mergeOutputExt}")],
+            initialdir=initialDir if os.path.isdir(initialDir) else None,
+            initialfile=f"{initialName}{mergeOutputExt}",
         )
         if p:
-            self._set_output_from_full_path(p)
+            self.setOutputFromFullPath(p)
 
-    def _set_filter_text_content(self, text: str) -> None:
-        self._filter_keywords.set(text.strip())
+    def setFilterTextContent(self, text: str) -> None:
+        self.filterKeywords.set(text.strip())
 
-    def _sync_filter_entry_scroll(self) -> None:
+    def syncFilterEntryScroll(self) -> None:
         def bump() -> None:
             try:
-                e = self._filter_entry._entry
+                e = self.mergeFilterEntry._entry
                 e.update_idletasks()
                 e.xview_moveto(0)
                 lo, hi = e.xview()
-                self._filter_hscroll.set(lo, hi)
+                self.mergeFilterHscroll.set(lo, hi)
             except (tk.TclError, ValueError):
                 pass
 
         self.after_idle(bump)
 
-    def _on_filter_toggle(self) -> None:
-        if self._filter_export.get():
-            self._filter_entry.configure(state="normal")
+    def onFilterToggle(self) -> None:
+        if self.filterExport.get():
+            self.mergeFilterEntry.configure(state="normal")
         else:
-            self._filter_entry.configure(state="disabled")
+            self.mergeFilterEntry.configure(state="disabled")
 
-    def _parse_filter_keywords(self) -> list[str]:
-        raw = self._filter_keywords.get().replace("\n", ",")
+    def parseFilterKeywords(self) -> list[str]:
+        raw = self.filterKeywords.get().replace("\n", ",")
         out: list[str] = []
         for part in raw.split(","):
             t = part.strip()
@@ -629,18 +811,18 @@ class MergeDashboard(ctk.CTk):
                 out.append(t)
         return out
 
-    def _keyword_filter_for_run(self) -> list[str] | None:
-        if not self._filter_export.get():
+    def keywordFilterForRun(self) -> list[str] | None:
+        if not self.filterExport.get():
             return None
-        kws = self._parse_filter_keywords()
+        kws = self.parseFilterKeywords()
         if not kws:
             raise ValueError(
-                "-Filter by keywords is on — enter at least one comma-separated keyword or -keyword."
+                "Filter by keywords is on — enter at least one comma-separated keyword or -keyword."
             )
         return kws
 
-    def _resolve_action(self) -> Action:
-        b, c, e = self._paths["base"], self._paths["company"], self._paths["emails"]
+    def resolveMergeAction(self) -> Action:
+        b, c, e = self.paths["base"], self.paths["company"], self.paths["emails"]
         if not b:
             return "none"
         if c and e:
@@ -651,132 +833,132 @@ class MergeDashboard(ctk.CTk):
             return "emails"
         return "format"
 
-    def _refresh_ui(self) -> None:
-        self._action = self._resolve_action()
+    def refreshMergeUi(self) -> None:
+        self.action = self.resolveMergeAction()
+        self.updateOutputSections()
+        kind = self.primaryRunKind()
+        splitSideNote = ""
+        if self.splitInputPath and os.path.isfile(self.splitInputPath) and kind == "merge":
+            splitSideNote = " Split is ready too — clear Base to run Split from the same button."
 
-        if self._action == "none":
-            self._action_btn.configure(
-                state="disabled",
-                text="Select base file first",
-            )
-            self._hint.configure(
-                text="Add your main spreadsheet in the left window. Optional: company list and email list in the other two."
-            )
-        elif self._action == "format":
-            self._action_btn.configure(
-                state="normal",
-                text="Format to Excel",
-            )
-            self._hint.configure(
-                text="Only the base file is set — output will be a styled Excel copy (same data, formatted table & links)."
-            )
-        elif self._action == "company":
-            self._action_btn.configure(
-                state="normal",
-                text="Merge company websites",
-            )
-            self._hint.configure(
-                text="Base + company lookup — Website column will be filled by matching company names."
-            )
-        elif self._action == "emails":
-            self._action_btn.configure(
-                state="normal",
-                text="Merge person emails",
-            )
-            self._hint.configure(
-                text="Base + email lookup — Email column will be filled by matching LinkedIn URLs."
+        if kind == "merge":
+            if self.action == "format":
+                self.mergeActionBtn.configure(state="normal", text="Format to Excel")
+                self.mergeHint.configure(
+                    text="Only the base file is set — output will be a styled Excel copy (same data, formatted table & links)."
+                    + splitSideNote
+                )
+            elif self.action == "company":
+                self.mergeActionBtn.configure(state="normal", text="Merge company websites")
+                self.mergeHint.configure(
+                    text="Base + company lookup — Website column will be filled by matching company names."
+                    + splitSideNote
+                )
+            elif self.action == "emails":
+                self.mergeActionBtn.configure(state="normal", text="Merge person emails")
+                self.mergeHint.configure(
+                    text="Base + email lookup — Email column will be filled by matching LinkedIn URLs."
+                    + splitSideNote
+                )
+            else:
+                self.mergeActionBtn.configure(state="normal", text="Merge websites & emails")
+                self.mergeHint.configure(
+                    text="All three files set — company websites are merged first, then emails by LinkedIn."
+                    + splitSideNote
+                )
+        elif kind == "split":
+            self.mergeActionBtn.configure(state="normal", text="Split CSV")
+            self.mergeHint.configure(
+                text="Writes chunk files using the pattern in Output (one {} for the chunk index, 40 data rows per file plus header)."
             )
         else:
-            self._action_btn.configure(
-                state="normal",
-                text="Merge websites & emails",
-            )
-            self._hint.configure(
-                text="All three files set — company websites are merged first, then emails by LinkedIn."
+            self.mergeActionBtn.configure(state="disabled", text="Select Base or Split CSV")
+            self.mergeHint.configure(
+                text="Add a Base file for Excel merge/format, and/or choose a CSV in Split — outputs appear in the Output card when you select files."
             )
 
-    def _output_or_fail(self) -> str:
-        stem = self._output_name.get().strip()
+    def mergeOutputOrFail(self) -> str:
+        stem = self.outputStem.get().strip()
         stem = stem.replace("\\", "").replace("/", "").strip()
         stem = os.path.basename(stem) if stem else ""
         if not stem:
             raise ValueError("Enter an output file name (or use Browse…).")
-        base = self._paths.get("base")
-        if not self._output_dir or not os.path.isdir(self._output_dir):
-            self._output_dir = os.path.dirname(os.path.abspath(base)) if base else os.getcwd()
-            self._update_dir_label()
-        if not os.path.isdir(self._output_dir):
-            raise ValueError(f"Output folder is not valid: {self._output_dir}")
-        return os.path.normpath(os.path.join(self._output_dir, f"{stem}{OUTPUT_EXT}"))
+        base = self.paths.get("base")
+        if not self.outputDir or not os.path.isdir(self.outputDir):
+            self.outputDir = os.path.dirname(os.path.abspath(base)) if base else os.getcwd()
+            self.updateMergeDirLabel()
+        if not os.path.isdir(self.outputDir):
+            raise ValueError(f"Output folder is not valid: {self.outputDir}")
+        return os.path.normpath(os.path.join(self.outputDir, f"{stem}{mergeOutputExt}"))
 
-    def _prepare_base_path_for_run(self) -> tuple[str, int, str | None]:
-        base_files = [p for p in self._base_paths if os.path.isfile(p)]
-        if not base_files:
-            b = self._paths.get("base")
+    def prepareBasePathForRun(self) -> tuple[str, int, str | None]:
+        baseFiles = [p for p in self.basePaths if os.path.isfile(p)]
+        if not baseFiles:
+            b = self.paths.get("base")
             if b and os.path.isfile(b):
-                base_files = [b]
-        if not base_files:
+                baseFiles = [b]
+        if not baseFiles:
             raise ValueError("Select at least one base file.")
-        if len(base_files) == 1:
-            return base_files[0], 1, None
+        if len(baseFiles) == 1:
+            return baseFiles[0], 1, None
 
-        frames = [self._normalize_base_columns(load_table(p)) for p in base_files]
+        frames = [self.normalizeBaseColumns(load_table(p)) for p in baseFiles]
         merged = pd.concat(frames, ignore_index=True, sort=False)
         tmp = tempfile.NamedTemporaryFile(prefix="merge_studio_base_", suffix=".xlsx", delete=False)
-        tmp_path = os.path.normpath(tmp.name)
+        tmpPath = os.path.normpath(tmp.name)
         tmp.close()
-        merged.to_excel(tmp_path, index=False)
-        return tmp_path, len(base_files), tmp_path
+        merged.to_excel(tmpPath, index=False)
+        return tmpPath, len(baseFiles), tmpPath
 
-    def _normalize_base_columns(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Map known aliases to fixed column names and coalesce duplicate columns."""
+    def normalizeBaseColumns(self, df: pd.DataFrame) -> pd.DataFrame:
         out = df.copy()
 
-        def norm_key(text: object) -> str:
+        def normKey(text: object) -> str:
             s = str(text).strip().lower()
             return "".join(ch for ch in s if ch.isalnum())
 
-        rename_map: dict[str, str] = {}
+        renameMap: dict[str, str] = {}
         for col in out.columns:
-            nk = norm_key(col)
-            canonical = BASE_COLUMN_ALIASES.get(nk)
+            nk = normKey(col)
+            canonical = baseColumnAliases.get(nk)
             if canonical:
-                rename_map[col] = canonical
-        if rename_map:
-            out = out.rename(columns=rename_map)
+                renameMap[col] = canonical
+        if renameMap:
+            out = out.rename(columns=renameMap)
 
-        unique_cols: list[str] = []
+        uniqueCols: list[str] = []
         for col in out.columns:
-            if col in unique_cols:
+            if col in uniqueCols:
                 continue
             dup = out.loc[:, out.columns == col]
             if dup.shape[1] > 1:
                 filled = dup.replace(r"^\s*$", pd.NA, regex=True).bfill(axis=1).iloc[:, 0]
                 out = out.drop(columns=col)
                 out[col] = filled
-            unique_cols.append(col)
+            uniqueCols.append(col)
 
         return out
 
-    def _clear_log(self) -> None:
+    def clearLog(self) -> None:
         try:
-            self._log.delete("1.0", "end")
+            self.logBox.delete("1.0", "end")
         except tk.TclError:
             pass
 
-    def _log_line(self, msg: str) -> None:
-        self._log.insert("end", msg + "\n")
-        self._log.see("end")
+    def logLine(self, msg: str) -> None:
+        self.logBox.insert("end", msg + "\n")
+        self.logBox.see("end")
 
-    def _finish_success(self, output_path: str, log_msg: str) -> None:
-        self._log_line(log_msg)
-        self._last_success_output = os.path.normpath(output_path)
-        if os.path.isfile(self._last_success_output):
-            self._set_output_from_full_path(self._last_success_output)
-            self._btn_open_location.configure(state="normal")
+    def finishSuccess(self, outputPath: str, logMsg: str) -> None:
+        self.logLine(logMsg)
+        self.lastSuccessOutput = os.path.normpath(outputPath)
+        if os.path.isfile(self.lastSuccessOutput):
+            if self.lastSuccessOutput.lower().endswith(mergeOutputExt):
+                self.setOutputFromFullPath(self.lastSuccessOutput)
+            self.mergeOpenBtn.configure(state="normal")
 
-    def _open_file_location(self) -> None:
-        path = self._last_success_output
+    def openFileLocation(self) -> None:
+        path = self.lastSuccessOutput
         if not path or not os.path.isfile(path):
             return
         path = os.path.normpath(path)
@@ -790,153 +972,197 @@ class MergeDashboard(ctk.CTk):
         except OSError:
             pass
 
-    def _on_action_click(self) -> None:
-        act = self._action
+    def onPrimaryActionClick(self) -> None:
+        if self.paths.get("base"):
+            self.onMergeActionClick()
+        elif self.splitInputPath and os.path.isfile(self.splitInputPath):
+            self.runAsync(self.doSplitCsv)
+
+    def onMergeActionClick(self) -> None:
+        act = self.action
         if act == "none":
             return
         if act == "format":
-            self._run_async(self._do_format)
+            self.runAsync(self.doFormat)
         elif act == "company":
-            self._run_async(self._do_merge_company)
+            self.runAsync(self.doMergeCompany)
         elif act == "emails":
-            self._run_async(self._do_merge_emails)
+            self.runAsync(self.doMergeEmails)
         else:
-            self._run_async(self._do_full)
+            self.runAsync(self.doFullMerge)
 
-    def _run_async(self, fn) -> None:
+    def clearAllFileSelections(self) -> None:
+        self.paths = {"base": None, "company": None, "emails": None}
+        self.basePaths = []
+        self.splitInputPath = None
+        for key in ("base", "company", "emails", "split"):
+            var = getattr(self, f"pathLabel{key.title()}", None)
+            if var:
+                var.set("— none —")
+        self.outputStem.set("")
+        self.splitOutputPattern.set("")
+        self.outputDir = os.getcwd()
+        self.updateMergeDirLabel()
+        self.updateSplitPatternDirLabel()
+        self.lastSuccessOutput = None
+        self.mergeOpenBtn.configure(state="disabled")
+        self.onPathsChanged()
+
+    def runAsync(self, fn) -> None:
         def work() -> None:
             try:
                 fn()
             except Exception as ex:
                 err = f"{ex}\n{traceback.format_exc()}"
-                self.after(0, lambda: self._log_line(err))
+                self.after(0, lambda m=err: self.logLine(m))
+            finally:
+                self.after(0, lambda: self.clearSelectionsBtn.configure(state="normal"))
 
-        self._clear_log()
-        self._btn_open_location.configure(state="disabled")
-        self._log_line("Running…")
+        self.clearLog()
+        self.mergeOpenBtn.configure(state="disabled")
+        self.clearSelectionsBtn.configure(state="disabled")
+        self.logLine("Running…")
         threading.Thread(target=work, daemon=True).start()
 
-    def _do_format(self) -> None:
-        b, base_n, temp_path = self._prepare_base_path_for_run()
+    def doFormat(self) -> None:
+        b, baseN, tempPath = self.prepareBasePathForRun()
         try:
-            out = self._output_or_fail()
-            kw = self._keyword_filter_for_run()
+            out = self.mergeOutputOrFail()
+            kw = self.keywordFilterForRun()
             n = run_format(
                 b,
                 out,
                 table_name="Data",
                 keyword_filter=kw,
-                require_linkedin=self._require_linkedin.get(),
+                require_linkedin=self.requireLinkedin.get(),
             )
-            log_msg = f"Formatted {n} rows → {out}"
-            if base_n > 1:
-                log_msg = f"Merged {base_n} base files first.\n{log_msg}"
+            logMsg = f"Formatted {n} rows → {out}"
+            if baseN > 1:
+                logMsg = f"Merged {baseN} base files first.\n{logMsg}"
             self.after(
                 0,
-                lambda o=out, msg=log_msg: self._finish_success(o, msg),
+                lambda o=out, msg=logMsg: self.finishSuccess(o, msg),
             )
         finally:
-            if temp_path:
+            if tempPath:
                 try:
-                    os.unlink(temp_path)
+                    os.unlink(tempPath)
                 except OSError:
                     pass
 
-    def _do_merge_company(self) -> None:
-        b, base_n, temp_path = self._prepare_base_path_for_run()
-        c = self._paths["company"]
+    def doMergeCompany(self) -> None:
+        b, baseN, tempPath = self.prepareBasePathForRun()
+        c = self.paths["company"]
         if not c:
             raise ValueError("Need base + company files.")
         try:
-            out = self._output_or_fail()
-            kw = self._keyword_filter_for_run()
+            out = self.mergeOutputOrFail()
+            kw = self.keywordFilterForRun()
             rows, matched = run_merge_company(
                 b,
                 c,
                 out,
                 table_name="EnergyTech",
                 keyword_filter=kw,
-                require_linkedin=self._require_linkedin.get(),
+                require_linkedin=self.requireLinkedin.get(),
             )
-            log_msg = f"Rows: {rows}, websites matched: {matched}\n→ {out}"
-            if base_n > 1:
-                log_msg = f"Merged {base_n} base files first.\n{log_msg}"
+            logMsg = f"Rows: {rows}, websites matched: {matched}\n→ {out}"
+            if baseN > 1:
+                logMsg = f"Merged {baseN} base files first.\n{logMsg}"
             self.after(
                 0,
-                lambda o=out, msg=log_msg: self._finish_success(o, msg),
+                lambda o=out, msg=logMsg: self.finishSuccess(o, msg),
             )
         finally:
-            if temp_path:
+            if tempPath:
                 try:
-                    os.unlink(temp_path)
+                    os.unlink(tempPath)
                 except OSError:
                     pass
 
-    def _do_merge_emails(self) -> None:
-        b, base_n, temp_path = self._prepare_base_path_for_run()
-        e = self._paths["emails"]
+    def doMergeEmails(self) -> None:
+        b, baseN, tempPath = self.prepareBasePathForRun()
+        e = self.paths["emails"]
         if not e:
             raise ValueError("Need base + email lookup files.")
         try:
-            out = self._output_or_fail()
-            kw = self._keyword_filter_for_run()
+            out = self.mergeOutputOrFail()
+            kw = self.keywordFilterForRun()
             rows, matched = run_merge_emails(
                 b,
                 e,
                 out,
                 table_name="WithEmails",
                 keyword_filter=kw,
-                require_linkedin=self._require_linkedin.get(),
+                require_linkedin=self.requireLinkedin.get(),
             )
-            log_msg = f"Rows: {rows}, emails matched: {matched}\n→ {out}"
-            if base_n > 1:
-                log_msg = f"Merged {base_n} base files first.\n{log_msg}"
+            logMsg = f"Rows: {rows}, emails matched: {matched}\n→ {out}"
+            if baseN > 1:
+                logMsg = f"Merged {baseN} base files first.\n{logMsg}"
             self.after(
                 0,
-                lambda o=out, msg=log_msg: self._finish_success(o, msg),
+                lambda o=out, msg=logMsg: self.finishSuccess(o, msg),
             )
         finally:
-            if temp_path:
+            if tempPath:
                 try:
-                    os.unlink(temp_path)
+                    os.unlink(tempPath)
                 except OSError:
                     pass
 
-    def _do_full(self) -> None:
-        b, base_n, temp_path = self._prepare_base_path_for_run()
-        c, e = self._paths["company"], self._paths["emails"]
+    def doFullMerge(self) -> None:
+        b, baseN, tempPath = self.prepareBasePathForRun()
+        c, e = self.paths["company"], self.paths["emails"]
         if not c or not e:
             raise ValueError("Need all three files for the full pipeline.")
         try:
-            out = self._output_or_fail()
-            kw = self._keyword_filter_for_run()
-            rows, web_n, em_n = run_merge_full_pipeline(
+            out = self.mergeOutputOrFail()
+            kw = self.keywordFilterForRun()
+            rows, webN, emN = run_merge_full_pipeline(
                 b,
                 c,
                 e,
                 out,
                 table_name="Merged",
                 keyword_filter=kw,
-                require_linkedin=self._require_linkedin.get(),
+                require_linkedin=self.requireLinkedin.get(),
             )
-            log_msg = f"Rows: {rows}, websites filled: {web_n}, emails matched: {em_n}\n→ {out}"
-            if base_n > 1:
-                log_msg = f"Merged {base_n} base files first.\n{log_msg}"
+            logMsg = f"Rows: {rows}, websites filled: {webN}, emails matched: {emN}\n→ {out}"
+            if baseN > 1:
+                logMsg = f"Merged {baseN} base files first.\n{logMsg}"
             self.after(
                 0,
-                lambda o=out, msg=log_msg: self._finish_success(o, msg),
+                lambda o=out, msg=logMsg: self.finishSuccess(o, msg),
             )
         finally:
-            if temp_path:
+            if tempPath:
                 try:
-                    os.unlink(temp_path)
+                    os.unlink(tempPath)
                 except OSError:
                     pass
+
+    def doSplitCsv(self) -> None:
+        inp = self.splitInputPath
+        if not inp or not os.path.isfile(inp):
+            raise ValueError("Select a CSV file to split.")
+        pattern = self.splitOutputPattern.get().strip()
+        if pattern.count("{}") != 1:
+            raise ValueError(
+                "Output pattern must contain exactly one '{}' for the chunk number "
+                "(example: C:\\\\data\\\\people_{}.csv)."
+            )
+        created = split_csv_chunks(inp, pattern, rows_per_file=40)
+        if not created:
+            raise ValueError("No output files were created.")
+        first = created[0]
+        logMsg = "\n".join(f"Created: {p}" for p in created)
+        self.after(0, lambda f=first, m=logMsg: self.finishSuccess(f, m))
+
 
 def main() -> None:
     ctk.set_appearance_mode("dark")
     ctk.set_default_color_theme("blue")
-    app = MergeDashboard()
+    app = StudioApp()
     app.mainloop()
 
 

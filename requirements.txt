@@ -1,23 +1,14 @@
-# Core requirements
-openai==0.28.0
-colorama
-google-api-python-client
-openpyxl
+# --- Arch Linux setup ---
+# sudo pacman -S tk python-pip
+# cd /home/antonio/Desktop/AdvancedScraping
+# python3 -m pip install --user -r requirements.txt
+# python3 dashboard.py
+#
+# tk = tkinter (required for customtkinter GUI)
+# windnd is Windows-only; drag-and-drop on Linux uses file picker instead
+
 pandas
-python-dotenv
-requests
-beautifulsoup4
-selenium
-webdriver-manager
+openpyxl
+xlrd>=2.0.1
 customtkinter
-windnd
-tqdm
-
-# Image processing (optional)
-Pillow
-pytesseract
-
-# Note: For image processing functionality, you may need to install the following
-# system dependencies separately:
-# - tesseract
-# - tesseract-ocr
+windnd; sys_platform == "win32"
